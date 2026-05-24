@@ -15,7 +15,7 @@ if (Test-Path ".git\index.lock") {
 git add -A
 
 # Commit
-git commit -m "feat: sistema de instancias WhatsApp estilo CRM-Raiz"
+git commit -m "feat: pre-cadastro via WhatsApp + aprovacao com email + logs"
 
 # Push
 git push origin main

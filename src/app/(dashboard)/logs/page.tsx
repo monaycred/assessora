@@ -1,101 +1,144 @@
-import Header from "@/components/layout/Header";
-import { Card } from "@/components/ui/Card";
-import Badge from "@/components/ui/Badge";
-import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
-import { ScrollText, Shield, User, Settings } from "lucide-react";
+'use client'
 
-const ACTION_ICONS: Record<string, typeof User> = {
-  login: User,
-  logout: User,
-  create: Settings,
-  update: Settings,
-  delete: Settings,
-  approve: Shield,
-  reject: Shield,
-};
+import { useState, useEffect, useCallback } from 'react'
 
-const ACTION_VARIANTS: Record<string, "success" | "danger" | "info" | "warning" | "primary"> = {
-  login: "success",
-  logout: "default" as any,
-  create: "primary",
-  update: "info",
-  delete: "danger",
-  approve: "success",
-  reject: "danger",
-};
+interface LogEntry {
+  id: string
+  created_at: string
+  instance_name?: string
+  from_number?: string
+  event_type?: string
+  message_content?: string
+  step_before?: number
+  step_after?: number
+  result?: string
+  error?: string
+}
 
-export default async function LogsPage() {
-  const supabase = await createClient();
+const EVENT_COLORS: Record<string, string> = {
+  new_contact: 'bg-blue-100 text-blue-700',
+  onboarding: 'bg-purple-100 text-purple-700',
+  onboarding_complete: 'bg-indigo-100 text-indigo-700',
+  ai_response: 'bg-green-100 text-green-700',
+  ai_error: 'bg-red-100 text-red-700',
+  approved: 'bg-emerald-100 text-emerald-700',
+  rejected: 'bg-red-100 text-red-700',
+  silenced_awaiting_approval: 'bg-gray-100 text-gray-500',
+  fatal_error: 'bg-red-200 text-red-800',
+  message: 'bg-gray-100 text-gray-600',
+}
 
-  const { data: logs } = await supabase
-    .from("audit_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(100);
+function formatTime(dateStr: string) {
+  return new Date(dateStr).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  })
+}
+
+export default function LogsPage() {
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [autoRefresh, setAutoRefresh] = useState(false)
+  const [filter, setFilter] = useState('')
+
+  const carregar = useCallback(async () => {
+    const res = await fetch('/api/logs')
+    const data = await res.json()
+    setLogs(Array.isArray(data) ? data : [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  useEffect(() => {
+    if (!autoRefresh) return
+    const interval = setInterval(carregar, 5000)
+    return () => clearInterval(interval)
+  }, [autoRefresh, carregar])
+
+  const logsFiltrados = filter
+    ? logs.filter(l =>
+        l.from_number?.includes(filter) ||
+        l.event_type?.includes(filter) ||
+        l.message_content?.toLowerCase().includes(filter.toLowerCase()) ||
+        l.result?.toLowerCase().includes(filter.toLowerCase())
+      )
+    : logs
 
   return (
-    <div>
-      <Header title="Logs de Auditoria" subtitle="Registro de todas as ações do sistema" />
+    <div className="h-full overflow-auto bg-white">
+      <div className="border-b border-[#ebebeb] px-6 py-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-[18px] font-semibold text-gray-900">Logs do Webhook</h1>
+          <p className="text-[12px] text-gray-500 mt-1">Debug em tempo real do fluxo de mensagens.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <input
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            placeholder="Filtrar por numero, evento..."
+            className="text-[12px] px-3 py-1.5 rounded border border-[#dcdcdc] w-52"
+          />
+          <label className="flex items-center gap-2 text-[12px] text-gray-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={e => setAutoRefresh(e.target.checked)}
+              className="rounded"
+            />
+            Auto-refresh (5s)
+          </label>
+          <button
+            onClick={carregar}
+            className="px-3 py-1.5 rounded border border-[#d0d5dd] bg-white text-[12px] text-gray-700"
+          >
+            Atualizar
+          </button>
+        </div>
+      </div>
 
       <div className="p-6">
-        <Card>
-          <div className="flex items-center gap-2 mb-4">
-            <ScrollText className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">
-              Auditoria ({logs?.length || 0} registros)
-            </h3>
+        {loading ? (
+          <p className="text-[13px] text-gray-400">Carregando logs...</p>
+        ) : logsFiltrados.length === 0 ? (
+          <div className="text-center text-[13px] text-gray-400 border border-dashed border-[#d1d5db] rounded-lg py-12">
+            Nenhum log encontrado.
           </div>
-
-          {!logs || logs.length === 0 ? (
-            <div className="py-10 text-center">
-              <ScrollText className="w-10 h-10 text-dark-700 mx-auto mb-3" />
-              <p className="text-sm text-dark-500">Nenhum log registrado</p>
-            </div>
-          ) : (
-            <div className="space-y-0">
-              {logs.map((log) => {
-                const actionKey = log.action?.split("_")[0] || "create";
-                const Icon = ACTION_ICONS[actionKey] || Settings;
-                const variant = ACTION_VARIANTS[actionKey] || "default";
-
-                return (
-                  <div
-                    key={log.id}
-                    className="flex items-start gap-3 py-3 border-b border-dark-800/50 last:border-0"
-                  >
-                    <div className="w-7 h-7 rounded-lg bg-dark-800 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Icon className="w-3.5 h-3.5 text-dark-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant={variant} className="text-[10px]">
-                          {log.action}
-                        </Badge>
-                        {log.entity_type && (
-                          <span className="text-xs text-dark-400">
-                            em <span className="text-dark-300">{log.entity_type}</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1">
-                        <p className="text-xs text-dark-500">
-                          {formatDate(log.created_at, "dd/MM/yyyy HH:mm:ss")}
-                        </p>
-                        {log.ip_address && (
-                          <p className="text-xs text-dark-600">
-                            IP: {log.ip_address}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
+        ) : (
+          <div className="space-y-2">
+            {logsFiltrados.map(log => (
+              <div key={log.id} className="border border-[#e5e7eb] rounded-lg p-3 bg-white font-mono text-[11px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-gray-400">{formatTime(log.created_at)}</span>
+                  {log.instance_name && (
+                    <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">{log.instance_name}</span>
+                  )}
+                  {log.from_number && (
+                    <span className="text-gray-600">{log.from_number}</span>
+                  )}
+                  {log.event_type && (
+                    <span className={`px-1.5 py-0.5 rounded ${EVENT_COLORS[log.event_type] || 'bg-gray-100 text-gray-600'}`}>
+                      {log.event_type}
+                    </span>
+                  )}
+                  {log.step_before !== undefined && log.step_after !== undefined && (
+                    <span className="text-gray-400">step {log.step_before} → {log.step_after}</span>
+                  )}
+                </div>
+                {log.message_content && (
+                  <p className="mt-1 text-gray-500 truncate">msg: "{log.message_content.slice(0, 120)}"</p>
+                )}
+                {log.result && (
+                  <p className="mt-0.5 text-green-700">ok: {log.result}</p>
+                )}
+                {log.error && (
+                  <p className="mt-0.5 text-red-600">erro: {log.error}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }

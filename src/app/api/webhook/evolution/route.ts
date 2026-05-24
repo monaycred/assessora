@@ -5,30 +5,79 @@ import { sendTextMessage } from "@/lib/evolution/client";
 import { estimateTokenCost, cleanWhatsAppNumber, parseAmount } from "@/lib/utils";
 import { AI_MODEL } from "@/lib/anthropic/client";
 
+// Valida CPF (formato e dígitos verificadores)
+function validarCPF(cpf: string): boolean {
+  const c = cpf.replace(/\D/g, "");
+  if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
+  let sum = 0;
+  for (let i = 0; i < 9; i++) sum += parseInt(c[i]) * (10 - i);
+  let r = (sum * 10) % 11;
+  if (r === 10 || r === 11) r = 0;
+  if (r !== parseInt(c[9])) return false;
+  sum = 0;
+  for (let i = 0; i < 10; i++) sum += parseInt(c[i]) * (11 - i);
+  r = (sum * 10) % 11;
+  if (r === 10 || r === 11) r = 0;
+  return r === parseInt(c[10]);
+}
+
+// Formata CPF para exibição
+function formatarCPF(cpf: string): string {
+  const c = cpf.replace(/\D/g, "");
+  return `${c.slice(0,3)}.${c.slice(3,6)}.${c.slice(6,9)}-${c.slice(9,11)}`;
+}
+
+// Busca endereço pelo CEP via ViaCEP
+async function buscarCEP(cep: string): Promise<{ logradouro: string; bairro: string; localidade: string; uf: string } | null> {
+  try {
+    const c = cep.replace(/\D/g, "");
+    if (c.length !== 8) return null;
+    const res = await fetch(`https://viacep.com.br/ws/${c}/json/`);
+    const data = await res.json();
+    if (data.erro) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+// Salva log do webhook para debug
+async function log(supabase: any, data: {
+  instance_name?: string;
+  from_number?: string;
+  event_type?: string;
+  message_content?: string;
+  step_before?: number;
+  step_after?: number;
+  result?: string;
+  error?: string;
+}) {
+  try {
+    await supabase.from("webhook_logs").insert(data);
+  } catch { /* log nunca deve quebrar o fluxo */ }
+}
+
 // POST /api/webhook/evolution
 export async function POST(req: NextRequest) {
+  const supabase = createAdminClient();
+
   try {
     const body = await req.json();
-    const supabase = createAdminClient();
 
-    // Extrai dados da mensagem da Evolution API
     const event = body?.event;
     const data = body?.data;
 
-    // Extrai o nome da instância que enviou o evento
     const instanceName: string =
       body?.instance ||
       body?.instanceName ||
       data?.instance?.instanceName ||
       process.env.EVOLUTION_INSTANCE_NAME ||
-      "TMT2";
+      "IASMIN";
 
-    // Trata atualização de QR code / status de conexão
+    // ── Eventos de conexão/QR — só atualiza status ──────────────────────────
     if (event === "qrcode.updated" || event === "QRCODE_UPDATED") {
-      const qrCode = data?.qrcode?.base64 || data?.base64 || "";
-      await supabase
-        .from("whatsapp_instances")
-        .update({ status: "qr_code" })
+      await supabase.from("whatsapp_instances")
+        .update({ status_conexao: "qr_code" })
         .eq("instance_name", instanceName);
       return NextResponse.json({ ok: true });
     }
@@ -36,52 +85,43 @@ export async function POST(req: NextRequest) {
     if (event === "connection.update" || event === "CONNECTION_UPDATE") {
       const state = data?.state || data?.connection;
       if (state === "open") {
-        const phone = data?.wid?.split("@")[0] || data?.me?.id?.split(":")[0] || null;
-        await supabase
-          .from("whatsapp_instances")
-          .update({
-            status: "connected",
-            connected_at: new Date().toISOString(),
-            ...(phone ? { phone_number: phone } : {}),
-          })
+        await supabase.from("whatsapp_instances")
+          .update({ status_conexao: "online", status: "connected" })
           .eq("instance_name", instanceName);
-      } else if (state === "close" || state === "connecting") {
-        await supabase
-          .from("whatsapp_instances")
-          .update({ status: state === "close" ? "disconnected" : "connecting" })
+      } else if (state === "close") {
+        await supabase.from("whatsapp_instances")
+          .update({ status_conexao: "desconectado", status: "disconnected" })
           .eq("instance_name", instanceName);
       }
       return NextResponse.json({ ok: true });
     }
 
-    // Só processa mensagens recebidas
-    if (event !== "messages.upsert") {
+    // ── Só processa messages.upsert ─────────────────────────────────────────
+    if (event !== "messages.upsert" && event !== "MESSAGES_UPSERT") {
       return NextResponse.json({ ok: true });
     }
 
     const message = data?.messages?.[0] || data?.message || data;
     if (!message) return NextResponse.json({ ok: true });
 
-    // Extrai número do remetente
+    // Ignora mensagens enviadas pelo próprio bot
+    if (message?.key?.fromMe === true) return NextResponse.json({ ok: true });
+
     const fromJID = message?.key?.remoteJid || message?.from || "";
     const fromNumber = cleanWhatsAppNumber(fromJID);
 
     if (!fromNumber || fromJID.includes("@g.us")) {
-      // Ignora grupos
       return NextResponse.json({ ok: true });
     }
 
-    // Extrai conteúdo
-    const messageContent =
+    const messageContent: string =
       message?.message?.conversation ||
       message?.message?.extendedTextMessage?.text ||
       message?.body ||
       "";
 
-    const messageType = message?.message?.imageMessage
-      ? "image"
-      : message?.message?.documentMessage
-      ? "document"
+    const messageType = message?.message?.imageMessage ? "image"
+      : message?.message?.documentMessage ? "document"
       : "text";
 
     const mediaUrl =
@@ -89,59 +129,25 @@ export async function POST(req: NextRequest) {
       message?.message?.documentMessage?.url ||
       null;
 
-    console.log(`[Webhook] Mensagem de ${fromNumber}: ${messageContent}`);
+    console.log(`[Webhook] ${instanceName} | ${fromNumber}: "${messageContent}"`);
 
-    // 1. Verifica se número está autorizado
-    const { data: authorizedNumber } = await supabase
-      .from("authorized_whatsapp_numbers")
-      .select("*, user_id")
+    // ── Busca contato pelo telefone ─────────────────────────────────────────
+    const { data: contact } = await supabase
+      .from("contacts")
+      .select("*")
       .eq("phone_number", fromNumber)
-      .eq("is_active", true)
-      .single();
+      .maybeSingle();
 
-    if (!authorizedNumber) {
-      // 2. Cria solicitação pendente (se não existe)
-      const { data: existingRequest } = await supabase
-        .from("approval_requests")
-        .select("id, status")
-        .eq("phone_number", fromNumber)
-        .single();
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASO 1: Contato APROVADO — responde com IA normalmente
+    // ═══════════════════════════════════════════════════════════════════════
+    if (contact?.status === "aprovado") {
+      await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "message", message_content: messageContent, result: "ai_processing" });
 
-      if (!existingRequest) {
-        await supabase.from("approval_requests").insert({
-          phone_number: fromNumber,
-          status: "pending",
-          requested_at: new Date().toISOString(),
-        });
+      const userId = contact.user_id;
 
-        await sendTextMessage(
-          fromNumber,
-          "Olá! Esse número ainda precisa ser aprovado pelo administrador. Aguarde a aprovação para usar a Iasmin. 😊",
-          instanceName
-        );
-      } else if (existingRequest.status === "pending") {
-        await sendTextMessage(
-          fromNumber,
-          "Seu número ainda está aguardando aprovação. Você será notificado quando puder usar a Iasmin.",
-          instanceName
-        );
-      } else if (existingRequest.status === "rejected") {
-        await sendTextMessage(
-          fromNumber,
-          "Infelizmente seu número não foi autorizado. Entre em contato com o administrador.",
-          instanceName
-        );
-      }
-
-      return NextResponse.json({ ok: true });
-    }
-
-    const userId = authorizedNumber.user_id;
-
-    // 3. Salva a mensagem
-    const { data: savedMessage } = await supabase
-      .from("messages")
-      .insert({
+      // Salva mensagem
+      const { data: savedMessage } = await supabase.from("messages").insert({
         user_id: userId,
         whatsapp_number: fromNumber,
         message_id: message?.key?.id || crypto.randomUUID(),
@@ -150,278 +156,332 @@ export async function POST(req: NextRequest) {
         media_url: mediaUrl,
         raw_payload: message,
         processed: false,
-      })
-      .select()
-      .single();
+      }).select().single();
 
-    // 4. Verifica se a mensagem começa com "Iasmin" ou "Gabi"
-    const cleanContent = messageContent.trim().toLowerCase();
-    const isCommand =
-      cleanContent.startsWith("iasmin") ||
-      cleanContent.startsWith("gabi") ||
-      messageType === "image" ||
-      messageType === "document";
+      // Verifica prefixo "Iasmin" ou qualquer mensagem (onboarding já passou)
+      const cleanContent = messageContent.trim().toLowerCase();
+      const isCommand = cleanContent.startsWith("iasmin") || cleanContent.startsWith("ia,") || messageType !== "text";
 
-    if (!isCommand && messageType === "text") {
-      await sendTextMessage(
-        fromNumber,
-        "Olá! Para me chamar, comece a mensagem com *Iasmin* 😊\n\nExemplo: _Iasmin, registra mercado 150_"
-      );
+      if (!isCommand) {
+        await sendTextMessage(fromNumber, "Para me chamar, comece com *Iasmin* 😊\n\nExemplo: _Iasmin, registra mercado 150_", instanceName);
+        return NextResponse.json({ ok: true });
+      }
+
+      // Classifica com IA
+      let classification: any;
+      let promptTokens = 0;
+      let completionTokens = 0;
+
+      try {
+        if (mediaUrl && messageType === "image") {
+          classification = await classifyMessageWithImage(messageContent, mediaUrl);
+        } else {
+          classification = await classifyMessage(messageContent);
+        }
+        promptTokens = Math.ceil((messageContent.length / 4) + 500);
+        completionTokens = 100;
+      } catch (aiError) {
+        console.error("[Webhook] Erro IA:", aiError);
+        await sendTextMessage(fromNumber, "Tive um problema ao processar. Tente novamente.", instanceName);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "ai_error", error: String(aiError) });
+        return NextResponse.json({ ok: true });
+      }
+
+      let actionTaken = "unknown";
+      let responseMessage = classification.response_message;
+
+      try {
+        switch (classification.intent) {
+          case "expense": {
+            const ed = classification.extracted_data as any;
+            await supabase.from("expenses").insert({
+              user_id: userId,
+              description: ed.description || messageContent,
+              amount: parseAmount(String(ed.amount || 0)),
+              category: ed.category || "outros",
+              expense_date: ed.date || new Date().toISOString().split("T")[0],
+              is_shared: ed.is_shared || false,
+              is_private: false,
+              notes: messageContent,
+            });
+            actionTaken = "expense";
+            break;
+          }
+          case "reminder": {
+            const rd = classification.extracted_data as any;
+            await supabase.from("reminders").insert({
+              user_id: userId,
+              title: rd.title || messageContent,
+              description: messageContent,
+              remind_at: rd.remind_at || rd.date || new Date(Date.now() + 86400000).toISOString(),
+              status: "pending",
+              is_recurring: false,
+              is_private: false,
+            });
+            actionTaken = "reminder";
+            break;
+          }
+          case "event": {
+            const evd = classification.extracted_data as any;
+            await supabase.from("calendar_events").insert({
+              user_id: userId,
+              title: evd.title || messageContent,
+              description: messageContent,
+              location: evd.location || null,
+              start_at: evd.start_at || evd.date || new Date().toISOString(),
+              all_day: false,
+              is_private: false,
+              event_type: evd.event_type || null,
+            });
+            actionTaken = "event";
+            break;
+          }
+          case "shopping_list": {
+            const sd = classification.extracted_data as any;
+            const { data: list } = await supabase.from("shopping_lists").insert({
+              user_id: userId,
+              name: sd.list_name || "Lista de compras",
+              is_completed: false,
+              is_private: false,
+            }).select().single();
+            if (list && sd.items?.length > 0) {
+              await supabase.from("shopping_list_items").insert(
+                sd.items.map((item: string) => ({ list_id: list.id, name: item, is_checked: false }))
+              );
+            }
+            actionTaken = "shopping_list";
+            break;
+          }
+          case "wishlist": {
+            const wd = classification.extracted_data as any;
+            await supabase.from("wishlist_items").insert({
+              user_id: userId, name: wd.name || messageContent,
+              description: wd.description || null, estimated_price: wd.price || null,
+              priority: wd.priority || "medium", is_purchased: false, is_private: false,
+            });
+            actionTaken = "wishlist";
+            break;
+          }
+          case "close_account": {
+            const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+            const { data: monthExpenses } = await supabase.from("expenses")
+              .select("description, amount, category").eq("user_id", userId).gte("expense_date", firstDay);
+            const total = (monthExpenses || []).reduce((s: number, e: any) => s + (e.amount || 0), 0);
+            const lines = (monthExpenses || []).map((e: any) => `• ${e.description}: R$ ${Number(e.amount).toFixed(2)}`).join("\n");
+            responseMessage = `*Fechamento do mês:*\n\n${lines || "Nenhuma despesa"}\n\n*Total: R$ ${total.toFixed(2)}*`;
+            actionTaken = "close_account";
+            break;
+          }
+          default: {
+            responseMessage = "Não entendi 😊 Tente:\n• _Iasmin, registra mercado 150_\n• _Iasmin, me lembra de cortar cabelo daqui 20 dias_\n• _Iasmin, agenda consulta dia 25 às 14h_";
+            break;
+          }
+        }
+      } catch (actionError) {
+        console.error("[Webhook] Erro na ação:", actionError);
+        responseMessage = "Entendi, mas tive um problema ao salvar. Tente novamente.";
+      }
+
+      if (!responseMessage) responseMessage = "✅ Feito!";
+
+      if (savedMessage) {
+        await supabase.from("messages").update({ processed: true, action_taken: actionTaken }).eq("id", savedMessage.id);
+      }
+
+      await supabase.from("ai_usage_logs").insert({
+        user_id: userId, model: AI_MODEL,
+        prompt_tokens: promptTokens, completion_tokens: completionTokens,
+        total_tokens: promptTokens + completionTokens,
+        estimated_cost: estimateTokenCost(AI_MODEL, promptTokens, completionTokens),
+        action: actionTaken,
+      });
+
+      await sendTextMessage(fromNumber, responseMessage, instanceName);
+      await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "ai_response", message_content: messageContent, result: actionTaken });
+
+      return NextResponse.json({ ok: true, action: actionTaken });
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASO 2: Aguardando aprovação — fica MUDO
+    // ═══════════════════════════════════════════════════════════════════════
+    if (contact?.status === "aguardando_aprovacao") {
+      await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "message", message_content: messageContent, result: "silenced_awaiting_approval" });
+      // Não responde nada
       return NextResponse.json({ ok: true });
     }
 
-    // 5. Classifica com IA
-    let classification;
-    let promptTokens = 0;
-    let completionTokens = 0;
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASO 3: Bloqueado — ignora silenciosamente
+    // ═══════════════════════════════════════════════════════════════════════
+    if (contact?.status === "bloqueado") {
+      return NextResponse.json({ ok: true });
+    }
 
-    try {
-      if (mediaUrl && messageType === "image") {
-        classification = await classifyMessageWithImage(messageContent, mediaUrl);
-      } else {
-        classification = await classifyMessage(messageContent);
-      }
+    // ═══════════════════════════════════════════════════════════════════════
+    // CASO 4: Em onboarding (ou novo contato)
+    // ═══════════════════════════════════════════════════════════════════════
+    const stepAtual = contact?.onboarding_step ?? -1;
+    const resposta = messageContent.trim();
 
-      // Estima tokens (aproximado)
-      promptTokens = Math.ceil((messageContent.length / 4) + 500);
-      completionTokens = 100;
-    } catch (aiError) {
-      console.error("[Webhook] Erro na classificação IA:", aiError);
+    // Novo contato — cria registro e inicia onboarding
+    if (!contact) {
+      await supabase.from("contacts").insert({
+        phone_number: fromNumber,
+        status: "onboarding",
+        onboarding_step: 0,
+        instance_name: instanceName,
+        first_message: messageContent,
+      });
+
+      await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "new_contact", message_content: messageContent, step_before: -1, step_after: 0 });
+
       await sendTextMessage(
         fromNumber,
-        "Desculpe, tive um problema ao processar sua mensagem. Tente novamente.",
+        "Olá! 👋 Sou a Iasmin, sua assessora virtual pessoal.\n\nVamos fazer seu cadastro rapidinho!\n\n*Qual é o seu nome completo?*",
         instanceName
       );
       return NextResponse.json({ ok: true });
     }
 
-    // 6. Executa a ação baseada na classificação
-    let actionTaken = "unknown";
-    let responseMessage = classification.response_message;
+    // Processa cada step do onboarding
+    switch (stepAtual) {
 
-    try {
-      switch (classification.intent) {
-        case "expense": {
-          const ed = classification.extracted_data as any;
-          await supabase.from("expenses").insert({
-            user_id: userId,
-            description: ed.description || messageContent,
-            amount: parseAmount(String(ed.amount || 0)),
-            category: ed.category || "outros",
-            expense_date: ed.date || new Date().toISOString().split("T")[0],
-            is_shared: ed.is_shared || false,
-            is_private: false,
-            notes: messageContent,
-          });
-          actionTaken = "expense";
-          break;
+      case 0: { // Aguardando nome
+        if (resposta.length < 3) {
+          await sendTextMessage(fromNumber, "Por favor, informe seu nome completo 😊", instanceName);
+          return NextResponse.json({ ok: true });
         }
-
-        case "reminder": {
-          const rd = classification.extracted_data as any;
-          const remindAt = rd.remind_at || rd.date || new Date(Date.now() + 86400000).toISOString();
-          await supabase.from("reminders").insert({
-            user_id: userId,
-            title: rd.title || messageContent,
-            description: messageContent,
-            remind_at: remindAt,
-            status: "pending",
-            is_recurring: false,
-            is_private: false,
-          });
-          actionTaken = "reminder";
-          break;
-        }
-
-        case "event": {
-          const evd = classification.extracted_data as any;
-          await supabase.from("calendar_events").insert({
-            user_id: userId,
-            title: evd.title || messageContent,
-            description: messageContent,
-            location: evd.location || null,
-            start_at: evd.start_at || evd.date || new Date().toISOString(),
-            all_day: false,
-            is_private: false,
-            event_type: evd.event_type || null,
-          });
-          actionTaken = "event";
-          break;
-        }
-
-        case "shopping_list": {
-          const sd = classification.extracted_data as any;
-          const items = sd.items || [];
-          const listName = sd.list_name || "Lista de compras";
-
-          const { data: list } = await supabase
-            .from("shopping_lists")
-            .insert({
-              user_id: userId,
-              name: listName,
-              is_completed: false,
-              is_private: false,
-            })
-            .select()
-            .single();
-
-          if (list && items.length > 0) {
-            await supabase.from("shopping_list_items").insert(
-              items.map((item: string) => ({
-                list_id: list.id,
-                name: item,
-                is_checked: false,
-              }))
-            );
-          }
-          actionTaken = "shopping_list";
-          break;
-        }
-
-        case "wishlist": {
-          const wd = classification.extracted_data as any;
-          await supabase.from("wishlist_items").insert({
-            user_id: userId,
-            name: wd.name || messageContent,
-            description: wd.description || null,
-            estimated_price: wd.price || null,
-            priority: wd.priority || "medium",
-            is_purchased: false,
-            is_private: false,
-          });
-          actionTaken = "wishlist";
-          break;
-        }
-
-        case "health": {
-          const hd = classification.extracted_data as any;
-          await supabase.from("health_records").insert({
-            user_id: userId,
-            record_type: hd.type || "consulta",
-            title: hd.title || messageContent,
-            description: messageContent,
-            doctor_name: hd.doctor || null,
-            record_date: hd.date || new Date().toISOString().split("T")[0],
-            next_appointment: hd.next_appointment || null,
-          });
-          actionTaken = "health";
-          break;
-        }
-
-        case "trip": {
-          const td = classification.extracted_data as any;
-          await supabase.from("trips").insert({
-            user_id: userId,
-            title: td.title || `Viagem para ${td.destination || "destino"}`,
-            destination: td.destination || "A definir",
-            start_date: td.start_date || null,
-            end_date: td.end_date || null,
-            status: "planned",
-            notes: messageContent,
-            is_private: false,
-          });
-          actionTaken = "trip";
-          break;
-        }
-
-        case "image":
-        case "document": {
-          const dd = classification.extracted_data as any;
-          await supabase.from("documents").insert({
-            user_id: userId,
-            title: dd.title || (messageType === "image" ? "Imagem" : "Documento"),
-            doc_type: messageType === "image" ? "image" : "other",
-            file_url: mediaUrl || "",
-            folder: dd.folder || null,
-            is_private: false,
-          });
-          actionTaken = messageType;
-          break;
-        }
-
-        case "close_account": {
-          // Busca despesas do mês
-          const firstDay = new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            1
-          ).toISOString();
-
-          const { data: monthExpenses } = await supabase
-            .from("expenses")
-            .select("description, amount, category")
-            .eq("user_id", userId)
-            .gte("expense_date", firstDay);
-
-          const total = (monthExpenses || []).reduce(
-            (sum: number, e: { amount?: number }) => sum + (e.amount || 0),
-            0
-          );
-
-          const lines = (monthExpenses || [])
-            .map((e: any) => `• ${e.description}: R$ ${e.amount?.toFixed(2)}`)
-            .join("\n");
-
-          responseMessage = `*Fechamento do mês:*\n\n${lines || "Nenhuma despesa"}\n\n*Total: R$ ${total.toFixed(2)}*`;
-          actionTaken = "close_account";
-          break;
-        }
-
-        case "unknown":
-        default: {
-          responseMessage =
-            "Não entendi esse comando 😊 Tente:\n\n• _Iasmin, registra mercado 150_\n• _Iasmin, me lembra de cortar cabelo daqui 20 dias_\n• _Iasmin, agenda consulta dia 25 às 14h_";
-          break;
-        }
+        await supabase.from("contacts").update({ name: resposta, onboarding_step: 1 }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding", message_content: resposta, step_before: 0, step_after: 1, result: "nome salvo" });
+        const primeiroNome = resposta.split(" ")[0];
+        await sendTextMessage(fromNumber, `Prazer, *${primeiroNome}*! 😊\n\nAgora preciso do seu *CPF* (só os números):`, instanceName);
+        break;
       }
-    } catch (actionError) {
-      console.error("[Webhook] Erro ao executar ação:", actionError);
-      responseMessage = "Entendi o comando, mas tive um problema ao salvar. Tente novamente.";
+
+      case 1: { // Aguardando CPF
+        const cpfLimpo = resposta.replace(/\D/g, "");
+        if (!validarCPF(cpfLimpo)) {
+          await sendTextMessage(fromNumber, "CPF inválido. Por favor, digite novamente (só os números):", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        // Verifica se CPF já está cadastrado
+        const { data: cpfExistente } = await supabase.from("contacts").select("id").eq("cpf", cpfLimpo).maybeSingle();
+        if (cpfExistente) {
+          await sendTextMessage(fromNumber, "Esse CPF já possui um cadastro. Entre em contato com o suporte.", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        await supabase.from("contacts").update({ cpf: cpfLimpo, onboarding_step: 2 }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding", step_before: 1, step_after: 2, result: "cpf salvo" });
+        await sendTextMessage(fromNumber, "✅ CPF registrado!\n\nQual é a sua *data de nascimento*? (DD/MM/AAAA)", instanceName);
+        break;
+      }
+
+      case 2: { // Aguardando data de nascimento
+        const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+        if (!dateRegex.test(resposta)) {
+          await sendTextMessage(fromNumber, "Formato inválido. Use DD/MM/AAAA. Exemplo: 15/03/1990", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        const [, dia, mes, ano] = resposta.match(dateRegex)!;
+        const anoNum = parseInt(ano);
+        if (anoNum < 1900 || anoNum > new Date().getFullYear() - 16) {
+          await sendTextMessage(fromNumber, "Data inválida. Verifique e tente novamente.", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        await supabase.from("contacts").update({ birth_date: resposta, onboarding_step: 3 }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding", step_before: 2, step_after: 3, result: "nascimento salvo" });
+        await sendTextMessage(fromNumber, "Perfeito! 🎂\n\nQual é o seu *email*? (você receberá o acesso por aqui)", instanceName);
+        break;
+      }
+
+      case 3: { // Aguardando email
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(resposta)) {
+          await sendTextMessage(fromNumber, "Email inválido. Digite um email correto:", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        // Verifica se email já existe
+        const { data: emailExistente } = await supabase.from("contacts").select("id").eq("email", resposta.toLowerCase()).maybeSingle();
+        if (emailExistente) {
+          await sendTextMessage(fromNumber, "Esse email já está cadastrado. Use outro ou entre em contato com o suporte.", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        await supabase.from("contacts").update({ email: resposta.toLowerCase(), onboarding_step: 4 }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding", step_before: 3, step_after: 4, result: "email salvo" });
+        await sendTextMessage(fromNumber, "✅ Email registrado!\n\nQual é o seu *CEP*? (só os números)", instanceName);
+        break;
+      }
+
+      case 4: { // Aguardando CEP
+        const cepLimpo = resposta.replace(/\D/g, "");
+        if (cepLimpo.length !== 8) {
+          await sendTextMessage(fromNumber, "CEP inválido. Digite os 8 números do CEP:", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        const endereco = await buscarCEP(cepLimpo);
+        if (!endereco) {
+          await sendTextMessage(fromNumber, "Não encontrei esse CEP. Verifique e tente novamente:", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        await supabase.from("contacts").update({
+          cep: cepLimpo,
+          address_json: endereco,
+          onboarding_step: 5,
+        }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding", step_before: 4, step_after: 5, result: "cep salvo" });
+        await sendTextMessage(
+          fromNumber,
+          `Encontrei seu endereço:\n\n📍 ${endereco.logradouro}\n${endereco.bairro}\n${endereco.localidade} - ${endereco.uf}\n\nEstá correto? Responda *SIM* para confirmar ou *NÃO* para corrigir o CEP.`,
+          instanceName
+        );
+        break;
+      }
+
+      case 5: { // Aguardando confirmação do endereço
+        const sim = /^sim$/i.test(resposta.trim());
+        const nao = /^n[aã]o$/i.test(resposta.trim());
+        if (!sim && !nao) {
+          await sendTextMessage(fromNumber, "Por favor, responda *SIM* ou *NÃO*:", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        if (nao) {
+          // Volta para o step do CEP
+          await supabase.from("contacts").update({ onboarding_step: 4, cep: null, address_json: {} }).eq("phone_number", fromNumber);
+          await sendTextMessage(fromNumber, "Tudo bem! Digite o *CEP* correto:", instanceName);
+          return NextResponse.json({ ok: true });
+        }
+        // Confirmou — finaliza pré-cadastro
+        await supabase.from("contacts").update({
+          onboarding_step: 6,
+          status: "aguardando_aprovacao",
+        }).eq("phone_number", fromNumber);
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "onboarding_complete", step_before: 5, step_after: 6, result: "aguardando_aprovacao" });
+        await sendTextMessage(
+          fromNumber,
+          "✅ *Cadastro concluído!*\n\nSeu cadastro foi recebido e está aguardando aprovação.\n\nAssim que for aprovado, você receberá um email com o link de acesso à Iasmin. 🎉",
+          instanceName
+        );
+        break;
+      }
+
+      default: {
+        // Step desconhecido — não faz nada
+        await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "unknown_step", message_content: resposta, step_before: stepAtual, result: "ignored" });
+        break;
+      }
     }
 
-    // Garante que responseMessage tem valor
-    if (!responseMessage) {
-      responseMessage = "✅ Feito!";
-    }
+    return NextResponse.json({ ok: true });
 
-    // 7. Atualiza mensagem como processada
-    if (savedMessage) {
-      await supabase
-        .from("messages")
-        .update({ processed: true, action_taken: actionTaken })
-        .eq("id", savedMessage.id);
-    }
-
-    // 8. Registra uso de IA
-    await supabase.from("ai_usage_logs").insert({
-      user_id: userId,
-      model: AI_MODEL,
-      prompt_tokens: promptTokens,
-      completion_tokens: completionTokens,
-      total_tokens: promptTokens + completionTokens,
-      estimated_cost: estimateTokenCost(AI_MODEL, promptTokens, completionTokens),
-      action: actionTaken,
-    });
-
-    // 9. Registra log de auditoria
-    await supabase.from("audit_logs").insert({
-      user_id: userId,
-      action: `whatsapp_${actionTaken}`,
-      entity_type: actionTaken,
-      new_data: { message: messageContent, from: fromNumber },
-    });
-
-    // 10. Responde no WhatsApp (pela mesma instância que recebeu)
-    await sendTextMessage(fromNumber, responseMessage, instanceName);
-
-    return NextResponse.json({ ok: true, action: actionTaken });
   } catch (error) {
     console.error("[Webhook] Erro geral:", error);
+    await log(supabase, { event_type: "fatal_error", error: String(error) });
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
-// GET - para verificação do webhook
+// GET - health check
 export async function GET() {
-  return NextResponse.json({ status: "Iasmin webhook active " });
+  return NextResponse.json({ status: "Iasmin webhook active", version: "2.0" });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
 import { sendTextMessage } from "@/lib/evolution/client";
 
 // PATCH /api/approvals/[id]
@@ -12,61 +12,92 @@ export async function PATCH(
     const { action } = await req.json();
 
     if (!["approve", "reject"].includes(action)) {
-      return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
+      return NextResponse.json({ error: "Acao invalida" }, { status: 400 });
     }
 
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const supabase = createAdminClient();
 
-    if (!user) {
-      return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
-    }
-
-    // Busca a solicitação
-    const { data: approval, error } = await supabase
-      .from("approval_requests")
+    // Busca o contato
+    const { data: contact, error } = await supabase
+      .from("contacts")
       .select("*")
       .eq("id", id)
       .single();
 
-    if (error || !approval) {
-      return NextResponse.json({ error: "Solicitação não encontrada" }, { status: 404 });
+    if (error || !contact) {
+      return NextResponse.json({ error: "Contato nao encontrado" }, { status: 404 });
     }
 
-    const status = action === "approve" ? "approved" : "rejected";
-
-    // Atualiza status
-    await supabase
-      .from("approval_requests")
-      .update({
-        status,
-        reviewed_at: new Date().toISOString(),
-        reviewed_by: user.id,
-      })
-      .eq("id", id);
-
-    // Notifica o número no WhatsApp
+    // ── APROVAR ───────────────────────────────────────────────────────────
     if (action === "approve") {
-      await sendTextMessage(
-        approval.phone_number,
-        "✅ Seu número foi aprovado! Agora você pode usar a Iasmin.\n\nExemplo: _Iasmin, registra mercado 150 no débito_"
+      // Cria usuario no Supabase Auth via invite (envia email automatico com link de acesso)
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
+        contact.email,
+        {
+          data: {
+            phone: contact.phone_number,
+            name: contact.name,
+            cpf: contact.cpf,
+          },
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/login`,
+        }
       );
-    } else {
+
+      if (inviteError) {
+        console.error("[Approvals] Erro ao criar usuario:", inviteError);
+        return NextResponse.json({ error: `Erro ao criar usuario: ${inviteError.message}` }, { status: 500 });
+      }
+
+      const userId = inviteData?.user?.id;
+
+      // Atualiza contato para aprovado
+      await supabase.from("contacts").update({
+        status: "aprovado",
+        user_id: userId || null,
+        approved_at: new Date().toISOString(),
+      }).eq("id", id);
+
+      // Notifica pelo WhatsApp
       await sendTextMessage(
-        approval.phone_number,
-        "❌ Infelizmente seu número não foi autorizado. Entre em contato com o administrador."
+        contact.phone_number,
+        `✅ *Parabens, ${contact.name?.split(" ")[0]}!*\n\nSua conta na Iasmin foi aprovada!\n\nVerifique seu email *${contact.email}* — enviamos um link para voce criar sua senha e acessar o painel.\n\nDepois de criar sua senha, pode me chamar aqui mesmo pelo WhatsApp 😊`,
+        contact.instance_name
       );
+
+      // Log de auditoria
+      await supabase.from("webhook_logs").insert({
+        instance_name: contact.instance_name,
+        from_number: contact.phone_number,
+        event_type: "approved",
+        result: `user_id: ${userId}`,
+      });
+
+      return NextResponse.json({ success: true, status: "aprovado", user_id: userId });
     }
 
-    // Log
-    await supabase.from("audit_logs").insert({
-      user_id: user.id,
-      action: `approval_${status}`,
-      entity_type: "approval_request",
-      entity_id: id,
-    });
+    // ── REJEITAR ──────────────────────────────────────────────────────────
+    if (action === "reject") {
+      await supabase.from("contacts").update({
+        status: "bloqueado",
+      }).eq("id", id);
 
-    return NextResponse.json({ success: true, status });
+      // Notifica pelo WhatsApp
+      await sendTextMessage(
+        contact.phone_number,
+        "Infelizmente seu cadastro nao foi aprovado. Entre em contato com o suporte para mais informacoes.",
+        contact.instance_name
+      );
+
+      await supabase.from("webhook_logs").insert({
+        instance_name: contact.instance_name,
+        from_number: contact.phone_number,
+        event_type: "rejected",
+        result: "bloqueado",
+      });
+
+      return NextResponse.json({ success: true, status: "bloqueado" });
+    }
+
   } catch (error) {
     console.error("[Approvals]", error);
     return NextResponse.json({ error: "Erro interno" }, { status: 500 });
