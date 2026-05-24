@@ -1,5 +1,6 @@
 import axios from "axios";
 
+// Cliente padrão usando env vars (fallback quando não há instância do DB)
 const evolutionApi = axios.create({
   baseURL: process.env.EVOLUTION_API_URL,
   headers: {
@@ -8,7 +9,44 @@ const evolutionApi = axios.create({
   },
 });
 
-const DEFAULT_INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || "TMT2";
+const DEFAULT_INSTANCE = process.env.EVOLUTION_INSTANCE_NAME || "IASMIN";
+
+// Cria cliente axios para uma instância específica com suas próprias credenciais
+function makeClient(apiUrl: string, apiKey: string) {
+  return axios.create({
+    baseURL: apiUrl,
+    headers: { apikey: apiKey, "Content-Type": "application/json" },
+  });
+}
+
+// ─── Busca instância ativa do DB (server-side only) ───────────────────────────
+
+export async function getActiveInstance(): Promise<{
+  instanceName: string;
+  apiUrl: string;
+  apiKey: string;
+} | null> {
+  try {
+    // Import dinâmico para evitar ciclo e garantir server-side
+    const { createAdminClient } = await import("@/lib/supabase/server");
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("whatsapp_instances")
+      .select("instance_name, api_url, api_key")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (!data) return null;
+    return {
+      instanceName: data.instance_name,
+      apiUrl: data.api_url || process.env.EVOLUTION_API_URL || "",
+      apiKey: data.api_key || process.env.EVOLUTION_API_KEY || "",
+    };
+  } catch (e) {
+    console.error("[Evolution] Erro ao buscar instância ativa:", e);
+    return null;
+  }
+}
 
 // ─── Mensagens ────────────────────────────────────────────────────────────────
 
@@ -17,9 +55,20 @@ export async function sendTextMessage(
   message: string,
   instanceName?: string
 ): Promise<void> {
-  const instance = instanceName || DEFAULT_INSTANCE;
+  let client = evolutionApi;
+  let instance = instanceName || DEFAULT_INSTANCE;
+
+  // Tenta usar instância ativa do DB
+  if (!instanceName) {
+    const active = await getActiveInstance();
+    if (active) {
+      instance = active.instanceName;
+      client = makeClient(active.apiUrl, active.apiKey);
+    }
+  }
+
   try {
-    await evolutionApi.post(`/message/sendText/${instance}`, {
+    await client.post(`/message/sendText/${instance}`, {
       number: to,
       text: message,
       delay: 500,
@@ -36,9 +85,19 @@ export async function sendImageMessage(
   caption?: string,
   instanceName?: string
 ): Promise<void> {
-  const instance = instanceName || DEFAULT_INSTANCE;
+  let client = evolutionApi;
+  let instance = instanceName || DEFAULT_INSTANCE;
+
+  if (!instanceName) {
+    const active = await getActiveInstance();
+    if (active) {
+      instance = active.instanceName;
+      client = makeClient(active.apiUrl, active.apiKey);
+    }
+  }
+
   try {
-    await evolutionApi.post(`/message/sendMedia/${instance}`, {
+    await client.post(`/message/sendMedia/${instance}`, {
       number: to,
       mediatype: "image",
       media: imageUrl,
@@ -66,7 +125,6 @@ export interface QRCodeResponse {
   pairingCode?: string;
 }
 
-/** Lista todas as instâncias criadas no Evolution */
 export async function listEvolutionInstances(): Promise<InstanceStatus[]> {
   try {
     const response = await evolutionApi.get("/instance/fetchInstances");
@@ -85,7 +143,6 @@ export async function listEvolutionInstances(): Promise<InstanceStatus[]> {
   }
 }
 
-/** Obtém status de conexão de uma instância */
 export async function getInstanceStatus(instanceName: string): Promise<InstanceStatus> {
   try {
     const response = await evolutionApi.get(`/instance/connectionState/${instanceName}`);
@@ -103,7 +160,6 @@ export async function getInstanceStatus(instanceName: string): Promise<InstanceS
   }
 }
 
-/** Cria uma nova instância no Evolution */
 export async function createEvolutionInstance(
   instanceName: string,
   webhookUrl: string
@@ -128,7 +184,6 @@ export async function createEvolutionInstance(
   }
 }
 
-/** Obtém QR code de uma instância */
 export async function getInstanceQRCode(instanceName: string): Promise<QRCodeResponse> {
   try {
     const response = await evolutionApi.get(`/instance/connect/${instanceName}`);
@@ -143,7 +198,6 @@ export async function getInstanceQRCode(instanceName: string): Promise<QRCodeRes
   }
 }
 
-/** Desconecta (logout) uma instância */
 export async function disconnectInstance(instanceName: string): Promise<boolean> {
   try {
     await evolutionApi.delete(`/instance/logout/${instanceName}`);
@@ -154,7 +208,6 @@ export async function disconnectInstance(instanceName: string): Promise<boolean>
   }
 }
 
-/** Deleta uma instância do Evolution */
 export async function deleteEvolutionInstance(instanceName: string): Promise<boolean> {
   try {
     await evolutionApi.delete(`/instance/delete/${instanceName}`);
@@ -165,7 +218,6 @@ export async function deleteEvolutionInstance(instanceName: string): Promise<boo
   }
 }
 
-/** Reinicia uma instância */
 export async function restartInstance(instanceName: string): Promise<boolean> {
   try {
     await evolutionApi.put(`/instance/restart/${instanceName}`);
@@ -176,7 +228,6 @@ export async function restartInstance(instanceName: string): Promise<boolean> {
   }
 }
 
-/** Configura webhook de uma instância */
 export async function setInstanceWebhook(
   instanceName: string,
   webhookUrl: string
@@ -195,9 +246,10 @@ export async function setInstanceWebhook(
   }
 }
 
-/** Verifica status da instância padrão (compatibilidade) */
 export async function checkInstanceStatus(): Promise<boolean> {
-  const status = await getInstanceStatus(DEFAULT_INSTANCE);
+  const active = await getActiveInstance();
+  const inst = active?.instanceName || DEFAULT_INSTANCE;
+  const status = await getInstanceStatus(inst);
   return status.state === "open";
 }
 

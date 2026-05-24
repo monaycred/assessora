@@ -4,10 +4,11 @@ import { getInstanceQRCode } from "@/lib/evolution/client";
 // GET /api/whatsapp/instances/[name]/qr — obtém QR code
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const qr = await getInstanceQRCode(params.name);
+    const { name } = await params;
+    const qr = await getInstanceQRCode(name);
     return NextResponse.json(qr);
   } catch (error) {
     console.error("[API] Erro ao obter QR:", error);

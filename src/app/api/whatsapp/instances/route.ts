@@ -1,82 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
-import {
-  createEvolutionInstance,
-  getInstanceStatus,
-  setInstanceWebhook,
-} from "@/lib/evolution/client";
 
-// GET /api/whatsapp/instances — lista todas as instâncias
+// GET /api/whatsapp/instances — lista todas as instâncias do DB
 export async function GET() {
   try {
     const supabase = createAdminClient();
-    const { data: instances, error } = await supabase
+    const { data, error } = await supabase
       .from("whatsapp_instances")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-
-    // Busca status real do Evolution para cada instância
-    const enriched = await Promise.all(
-      (instances || []).map(async (inst) => {
-        const evoStatus = await getInstanceStatus(inst.instance_name);
-        return {
-          ...inst,
-          evolution_state: evoStatus.state,
-          profile_name: evoStatus.profileName,
-          profile_pic: evoStatus.profilePicUrl,
-          evolution_phone: evoStatus.phoneNumber,
-        };
-      })
-    );
-
-    return NextResponse.json({ instances: enriched });
+    return NextResponse.json(data || []);
   } catch (error) {
     console.error("[API] Erro ao listar instâncias:", error);
     return NextResponse.json({ error: "Erro ao listar instâncias" }, { status: 500 });
   }
 }
 
-// POST /api/whatsapp/instances — cria nova instância
+// POST /api/whatsapp/instances — cadastra nova instância
 export async function POST(req: NextRequest) {
   try {
-    const { display_name } = await req.json();
-    const supabase = createAdminClient();
+    const body = await req.json();
+    const {
+      display_name,
+      instance_name,
+      numero,
+      tipo_canal,
+      provider,
+      api_url,
+      api_key,
+      cor,
+    } = body;
 
-    // Gera nome único para a instância
-    const timestamp = Date.now();
-    const instanceName = `iasmin_${timestamp}`;
-
-    // Webhook URL
-    const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhook/evolution`;
-
-    // Cria no Evolution
-    const evoResult = await createEvolutionInstance(instanceName, webhookUrl);
-    if (!evoResult.success) {
-      return NextResponse.json(
-        { error: `Erro na Evolution API: ${evoResult.error}` },
-        { status: 500 }
-      );
+    if (!instance_name && !display_name) {
+      return NextResponse.json({ error: "Nome ou instance_name obrigatório" }, { status: 400 });
     }
 
-    // Salva no banco
+    const supabase = createAdminClient();
+
+    // Verifica duplicata
+    const finalInstanceName = instance_name || display_name;
+    const { data: existente } = await supabase
+      .from("whatsapp_instances")
+      .select("id")
+      .eq("instance_name", finalInstanceName)
+      .maybeSingle();
+
+    if (existente) {
+      return NextResponse.json({ error: `Instância "${finalInstanceName}" já cadastrada` }, { status: 409 });
+    }
+
     const { data, error } = await supabase
       .from("whatsapp_instances")
       .insert({
-        instance_name: instanceName,
-        display_name: display_name || `Instância ${new Date().toLocaleDateString("pt-BR")}`,
-        status: "connecting",
+        display_name: display_name || instance_name,
+        instance_name: finalInstanceName,
+        numero: numero || null,
+        tipo_canal: tipo_canal || "whatsapp",
+        provider: provider || "evolution",
+        api_url: api_url || null,
+        api_key: api_key || null,
+        cor: cor || "#25D366",
         is_active: false,
+        ativo: false,
+        status_conexao: "desconectado",
+        config_json: {},
       })
       .select()
       .single();
 
     if (error) throw error;
-
-    return NextResponse.json({ instance: data }, { status: 201 });
-  } catch (error) {
+    return NextResponse.json(data, { status: 201 });
+  } catch (error: any) {
     console.error("[API] Erro ao criar instância:", error);
-    return NextResponse.json({ error: "Erro ao criar instância" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Erro ao criar instância" }, { status: 500 });
   }
 }

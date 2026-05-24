@@ -5,10 +5,10 @@ import { disconnectInstance } from "@/lib/evolution/client";
 // POST /api/whatsapp/instances/[name]/disconnect
 export async function POST(
   _req: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const { name } = params;
+    const { name } = await params;
 
     await disconnectInstance(name);
 

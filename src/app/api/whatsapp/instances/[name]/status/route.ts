@@ -5,10 +5,10 @@ import { getInstanceStatus } from "@/lib/evolution/client";
 // GET /api/whatsapp/instances/[name]/status — checa status e atualiza banco
 export async function GET(
   _req: NextRequest,
-  { params }: { params: { name: string } }
+  { params }: { params: Promise<{ name: string }> }
 ) {
   try {
-    const { name } = params;
+    const { name } = await params;
     const evoStatus = await getInstanceStatus(name);
 
     // Mapeia estado Evolution → status interno
@@ -22,7 +22,7 @@ export async function GET(
 
     // Atualiza banco com status e número detectado
     const supabase = createAdminClient();
-    const updateData: Record<string, any> = { status: dbStatus };
+    const updateData: Record<string, unknown> = { status: dbStatus };
 
     if (evoStatus.state === "open") {
       updateData.connected_at = new Date().toISOString();
