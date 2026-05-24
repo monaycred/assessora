@@ -15,6 +15,45 @@ export async function POST(req: NextRequest) {
     const event = body?.event;
     const data = body?.data;
 
+    // Extrai o nome da instância que enviou o evento
+    const instanceName: string =
+      body?.instance ||
+      body?.instanceName ||
+      data?.instance?.instanceName ||
+      process.env.EVOLUTION_INSTANCE_NAME ||
+      "TMT2";
+
+    // Trata atualização de QR code / status de conexão
+    if (event === "qrcode.updated" || event === "QRCODE_UPDATED") {
+      const qrCode = data?.qrcode?.base64 || data?.base64 || "";
+      await supabase
+        .from("whatsapp_instances")
+        .update({ status: "qr_code" })
+        .eq("instance_name", instanceName);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (event === "connection.update" || event === "CONNECTION_UPDATE") {
+      const state = data?.state || data?.connection;
+      if (state === "open") {
+        const phone = data?.wid?.split("@")[0] || data?.me?.id?.split(":")[0] || null;
+        await supabase
+          .from("whatsapp_instances")
+          .update({
+            status: "connected",
+            connected_at: new Date().toISOString(),
+            ...(phone ? { phone_number: phone } : {}),
+          })
+          .eq("instance_name", instanceName);
+      } else if (state === "close" || state === "connecting") {
+        await supabase
+          .from("whatsapp_instances")
+          .update({ status: state === "close" ? "disconnected" : "connecting" })
+          .eq("instance_name", instanceName);
+      }
+      return NextResponse.json({ ok: true });
+    }
+
     // Só processa mensagens recebidas
     if (event !== "messages.upsert") {
       return NextResponse.json({ ok: true });
@@ -77,17 +116,20 @@ export async function POST(req: NextRequest) {
 
         await sendTextMessage(
           fromNumber,
-          "Olá! Esse número ainda precisa ser aprovado pelo administrador. Aguarde a aprovação para usar a Iasmin. 😊"
+          "Olá! Esse número ainda precisa ser aprovado pelo administrador. Aguarde a aprovação para usar a Iasmin. 😊",
+          instanceName
         );
       } else if (existingRequest.status === "pending") {
         await sendTextMessage(
           fromNumber,
-          "Seu número ainda está aguardando aprovação. Você será notificado quando puder usar a Iasmin."
+          "Seu número ainda está aguardando aprovação. Você será notificado quando puder usar a Iasmin.",
+          instanceName
         );
       } else if (existingRequest.status === "rejected") {
         await sendTextMessage(
           fromNumber,
-          "Infelizmente seu número não foi autorizado. Entre em contato com o administrador."
+          "Infelizmente seu número não foi autorizado. Entre em contato com o administrador.",
+          instanceName
         );
       }
 
@@ -147,7 +189,8 @@ export async function POST(req: NextRequest) {
       console.error("[Webhook] Erro na classificação IA:", aiError);
       await sendTextMessage(
         fromNumber,
-        "Desculpe, tive um problema ao processar sua mensagem. Tente novamente."
+        "Desculpe, tive um problema ao processar sua mensagem. Tente novamente.",
+        instanceName
       );
       return NextResponse.json({ ok: true });
     }
@@ -336,6 +379,11 @@ export async function POST(req: NextRequest) {
       responseMessage = "Entendi o comando, mas tive um problema ao salvar. Tente novamente.";
     }
 
+    // Garante que responseMessage tem valor
+    if (!responseMessage) {
+      responseMessage = "✅ Feito!";
+    }
+
     // 7. Atualiza mensagem como processada
     if (savedMessage) {
       await supabase
@@ -363,8 +411,8 @@ export async function POST(req: NextRequest) {
       new_data: { message: messageContent, from: fromNumber },
     });
 
-    // 10. Responde no WhatsApp
-    await sendTextMessage(fromNumber, responseMessage);
+    // 10. Responde no WhatsApp (pela mesma instância que recebeu)
+    await sendTextMessage(fromNumber, responseMessage, instanceName);
 
     return NextResponse.json({ ok: true, action: actionTaken });
   } catch (error) {
