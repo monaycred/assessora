@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    const message = data?.messages?.[0] || data?.message || data;
+    const message = data?.messages?.[0] || data;
     if (!message) return NextResponse.json({ ok: true });
 
     // Ignora mensagens enviadas pelo próprio bot
