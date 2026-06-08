@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const CANAIS = [
   { value: 'whatsapp', label: 'WhatsApp (Evolution)' },
@@ -59,6 +59,14 @@ export default function WhatsAppPage() {
   const [webhook, setWebhook] = useState<Record<string, any>>({})
   const [configurandoWebhook, setConfigurandoWebhook] = useState<string | null>(null)
   const [ativando, setAtivando] = useState<string | null>(null)
+
+  // QR Code
+  const [qrInstancia, setQrInstancia] = useState<Instancia | null>(null)
+  const [qrBase64, setQrBase64] = useState<string | null>(null)
+  const [qrCarregando, setQrCarregando] = useState(false)
+  const [qrConectado, setQrConectado] = useState(false)
+  const qrRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const qrStatusRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function carregar() {
     const res = await fetch('/api/whatsapp/instances', { cache: 'no-store' })
@@ -152,6 +160,62 @@ export default function WhatsAppPage() {
     await carregar()
   }
 
+  // ── QR Code ──────────────────────────────────────────────────────────────────
+
+  function pararQR() {
+    if (qrRefreshRef.current) clearInterval(qrRefreshRef.current)
+    if (qrStatusRef.current) clearInterval(qrStatusRef.current)
+    qrRefreshRef.current = null
+    qrStatusRef.current = null
+  }
+
+  async function buscarQR(instancia: Instancia) {
+    setQrCarregando(true)
+    try {
+      const res = await fetch(`/api/whatsapp/instances/${instancia.instance_name}/qr`)
+      const data = await res.json().catch(() => ({}))
+      if (data.base64) {
+        setQrBase64(data.base64.startsWith('data:') ? data.base64 : `data:image/png;base64,${data.base64}`)
+      } else {
+        setQrBase64(null)
+      }
+    } catch {
+      setQrBase64(null)
+    }
+    setQrCarregando(false)
+  }
+
+  async function verificarStatus(instanceName: string) {
+    try {
+      const res = await fetch(`/api/whatsapp/instances/${instanceName}/status`)
+      const data = await res.json().catch(() => ({}))
+      if (data.state === 'open') {
+        setQrConectado(true)
+        pararQR()
+        await carregar()
+      }
+    } catch {
+      // silencioso
+    }
+  }
+
+  async function abrirQR(instancia: Instancia) {
+    pararQR()
+    setQrInstancia(instancia)
+    setQrConectado(false)
+    setQrBase64(null)
+    await buscarQR(instancia)
+    qrRefreshRef.current = setInterval(() => buscarQR(instancia), 30000)
+    qrStatusRef.current = setInterval(() => verificarStatus(instancia.instance_name), 4000)
+  }
+
+  function fecharQR() {
+    pararQR()
+    setQrInstancia(null)
+    setQrBase64(null)
+    setQrConectado(false)
+  }
+
   async function desativarInstancia(instancia: Instancia) {
     const confirmado = window.confirm(`Desativar a instância "${instancia.display_name || instancia.instance_name}"?`)
     if (!confirmado) return
@@ -174,6 +238,7 @@ export default function WhatsAppPage() {
   }
 
   return (
+    <>
     <div className="h-full overflow-auto bg-white">
       <div className="border-b border-[#ebebeb] px-6 py-4">
         <h1 className="text-[18px] font-semibold text-gray-900">Instâncias WhatsApp</h1>
@@ -352,6 +417,14 @@ export default function WhatsAppPage() {
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button
                       type="button"
+                      onClick={() => abrirQR(instancia)}
+                      className="rounded border border-[#ABEFC6] bg-[#ECFDF3] px-3 py-1.5 text-[11px] text-[#027A48] font-medium"
+                    >
+                      📱 Conectar via QR
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => testar({ id: instancia.id }, instancia.id)}
                       disabled={testando === instancia.id}
                       className="rounded border border-[#d0d5dd] bg-white px-3 py-1.5 text-[11px] text-gray-700 disabled:opacity-60"
@@ -401,5 +474,82 @@ export default function WhatsAppPage() {
         </div>
       </div>
     </div>
+
+    {/* ── Modal QR Code ───────────────────────────────────────────────────── */}
+    {qrInstancia && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        onClick={fecharQR}
+      >
+        <div
+          className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 p-6"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Cabeçalho */}
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-[15px] font-semibold text-gray-900">Conectar via QR Code</h3>
+            <button
+              onClick={fecharQR}
+              className="text-gray-400 hover:text-gray-600 text-xl leading-none px-1"
+            >
+              ×
+            </button>
+          </div>
+          <p className="text-[12px] text-gray-500 mb-5">
+            {qrInstancia.display_name || qrInstancia.instance_name}
+          </p>
+
+          {/* Conteúdo */}
+          {qrConectado ? (
+            <div className="flex flex-col items-center py-6">
+              <div className="w-14 h-14 rounded-full bg-[#ECFDF3] flex items-center justify-center mb-3 text-2xl">
+                ✅
+              </div>
+              <p className="text-[14px] font-semibold text-[#027A48]">WhatsApp conectado!</p>
+              <p className="text-[12px] text-gray-400 mt-1">A instância está online e pronta.</p>
+              <button
+                onClick={fecharQR}
+                className="mt-5 rounded bg-[#25D366] text-white text-[12px] font-medium px-8 py-2"
+              >
+                Fechar
+              </button>
+            </div>
+          ) : qrCarregando ? (
+            <div className="flex flex-col items-center py-10 gap-2">
+              <div className="w-8 h-8 border-2 border-[#25D366] border-t-transparent rounded-full animate-spin" />
+              <p className="text-[12px] text-gray-400">Carregando QR code...</p>
+            </div>
+          ) : qrBase64 ? (
+            <div className="flex flex-col items-center">
+              <img
+                src={qrBase64}
+                alt="QR Code WhatsApp"
+                className="w-56 h-56 rounded-lg border border-[#e5e7eb] mb-4"
+              />
+              <p className="text-[11px] text-gray-500 text-center">
+                Abra o WhatsApp → <strong>Dispositivos conectados</strong> → Conectar dispositivo
+              </p>
+              <p className="text-[10px] text-gray-400 text-center mt-1">
+                O QR atualiza automaticamente a cada 30s
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-8 gap-3">
+              <p className="text-[12px] text-red-500">Não foi possível obter o QR code.</p>
+              <p className="text-[11px] text-gray-400 text-center">
+                Verifique se a instância existe na Evolution API e as credenciais estão corretas.
+              </p>
+              <button
+                onClick={() => buscarQR(qrInstancia)}
+                className="text-[11px] text-[#25D366] underline"
+              >
+                Tentar novamente
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+    </>
   )
 }
