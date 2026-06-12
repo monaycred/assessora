@@ -24,12 +24,22 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-const navigation = [
+type NavItem =
+  | { type: "divider"; label: string }
+  | {
+      name: string;
+      href: string;
+      icon: React.ComponentType<{ className?: string }>;
+      adminOnly?: boolean;
+    };
+
+const navigation: NavItem[] = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { name: "Usuários", href: "/usuarios", icon: Users },
-  { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle },
-  { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare },
+  { name: "Usuários", href: "/usuarios", icon: Users, adminOnly: true },
+  { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle, adminOnly: true },
+  { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
   { name: "Financeiro", href: "/financeiro", icon: DollarSign },
   { name: "Lembretes", href: "/lembretes", icon: Bell },
@@ -40,8 +50,8 @@ const navigation = [
   { name: "Viagens", href: "/viagens", icon: Plane },
   { type: "divider", label: "SISTEMA" },
   { name: "Integrações", href: "/integracoes", icon: Puzzle },
-  { name: "Tokens IA", href: "/tokens", icon: Cpu },
-  { name: "Logs", href: "/logs", icon: ScrollText },
+  { name: "Tokens IA", href: "/tokens", icon: Cpu, adminOnly: true },
+  { name: "Logs", href: "/logs", icon: ScrollText, adminOnly: true },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
 ];
 
@@ -49,11 +59,44 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    async function checkRole() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("user_id", user.id)
+        .single();
+
+      setIsAdmin(profile?.role === "admin");
+    }
+    checkRole();
+  }, [supabase]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
+
+  // Filter out admin-only items when user is not admin
+  // Also remove dividers that only precede admin items
+  const visibleNavigation = navigation.filter((item) => {
+    if ("type" in item) return true; // keep dividers for now; we'll prune below
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
+
+  // Remove leading/consecutive/trailing dividers after filtering
+  const cleanedNavigation = visibleNavigation.filter((item, index, arr) => {
+    if (!("type" in item)) return true;
+    const next = arr[index + 1];
+    if (!next || "type" in next) return false; // divider followed by another divider or end
+    return true;
+  });
 
   return (
     <aside className="fixed left-0 top-0 h-full w-60 bg-dark-950 border-r border-dark-800/50 flex flex-col z-40">
@@ -74,7 +117,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-3">
-        {navigation.map((item, index) => {
+        {cleanedNavigation.map((item, index) => {
           if ("type" in item && item.type === "divider") {
             return (
               <div key={index} className="px-2 pt-4 pb-1">

@@ -23,6 +23,9 @@ export default async function DashboardPage() {
   } = await supabase.auth.getUser();
 
   // Busca dados do dashboard
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
   const [
     { count: pendingApprovals },
     { count: pendingReminders },
@@ -30,22 +33,25 @@ export default async function DashboardPage() {
     { data: recentMessages },
   ] = await Promise.all([
     supabase
-      .from("approval_requests")
+      .from("contacts")
       .select("*", { count: "exact", head: true })
-      .eq("status", "pending"),
+      .eq("status", "aguardando_aprovacao"),
     supabase
       .from("reminders")
       .select("*", { count: "exact", head: true })
+      .eq("user_id", user?.id || "")
       .eq("status", "pending"),
     supabase
       .from("expenses")
-      .select("*, payment_methods(name)")
+      .select("*")
       .eq("user_id", user?.id || "")
       .order("created_at", { ascending: false })
       .limit(5),
     supabase
       .from("messages")
       .select("*")
+      .eq("user_id", user?.id || "")
+      .gte("created_at", todayStart.toISOString())
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
