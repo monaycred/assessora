@@ -61,7 +61,7 @@ export async function PATCH(
         // Busca usuario existente pelo email
         const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
         if (!listError) {
-          const existing = users.find((u) => u.email === contact.email);
+          const existing = users.find((u: { email?: string; id: string }) => u.email === contact.email);
           if (existing) {
             userId = existing.id;
             isExistingUser = true;
