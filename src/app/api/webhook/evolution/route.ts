@@ -187,7 +187,18 @@ export async function POST(req: NextRequest) {
           classification = await classifyMessageWithImage(messageContent, mediaUrl);
         } else {
           const now = new Date();
-          const contextInfo = `Data e hora atual: ${now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. ISO: ${now.toISOString()}`;
+          // Servidor roda em UTC — calcula horário de Brasília (UTC-3)
+          const brasilOffset = -3 * 60;
+          const brasilTime = new Date(now.getTime() + (brasilOffset - now.getTimezoneOffset()) * 60000);
+          const p = (n: number) => String(n).padStart(2, "0");
+          const brasilDateStr = `${brasilTime.getFullYear()}-${p(brasilTime.getMonth()+1)}-${p(brasilTime.getDate())}`;
+          const brasilTimeStr = `${p(brasilTime.getHours())}:${p(brasilTime.getMinutes())}`;
+          const contextInfo = [
+            `Fuso horário: America/Sao_Paulo (UTC-3).`,
+            `Data e hora atual no Brasil: ${brasilDateStr} às ${brasilTimeStr}.`,
+            `IMPORTANTE: sempre use offset -03:00 nos campos de data/hora (remind_at, start_at).`,
+            `Exemplo: "18:29 de hoje" = "${brasilDateStr}T18:29:00-03:00".`,
+          ].join(" ");
           classification = await classifyMessage(messageContent, contextInfo);
         }
         promptTokens = Math.ceil((messageContent.length / 4) + 500);
