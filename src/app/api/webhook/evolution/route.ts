@@ -146,7 +146,15 @@ export async function POST(req: NextRequest) {
     if (contact?.status === "aprovado") {
       await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "message", message_content: messageContent, result: "ai_processing" });
 
-      const userId = contact.user_id;
+      const authUserId = contact.user_id; // auth.users.id
+
+      // Busca o profile id (todas as tabelas referenciam user_profiles.id, não auth.users.id)
+      const { data: userProfile } = await supabase
+        .from("user_profiles")
+        .select("id")
+        .eq("user_id", authUserId)
+        .single();
+      const userId = userProfile?.id ?? authUserId;
 
       // Salva mensagem
       const { data: savedMessage } = await supabase.from("messages").insert({
@@ -178,7 +186,9 @@ export async function POST(req: NextRequest) {
         if (mediaUrl && messageType === "image") {
           classification = await classifyMessageWithImage(messageContent, mediaUrl);
         } else {
-          classification = await classifyMessage(messageContent);
+          const now = new Date();
+          const contextInfo = `Data e hora atual: ${now.toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} às ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. ISO: ${now.toISOString()}`;
+          classification = await classifyMessage(messageContent, contextInfo);
         }
         promptTokens = Math.ceil((messageContent.length / 4) + 500);
         completionTokens = 100;
