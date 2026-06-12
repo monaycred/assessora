@@ -3,9 +3,8 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { sendTextMessage } from "@/lib/evolution/client";
 
 // GET /api/cron/reminders
-// Chamado a cada minuto por um cron externo (cron-job.org ou Vercel Cron)
+// Chamado a cada minuto por cron externo (cron-job.org)
 export async function GET(req: NextRequest) {
-  // Valida secret para evitar chamadas não autorizadas
   const secret = req.nextUrl.searchParams.get("secret");
   if (secret !== process.env.WEBHOOK_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -13,31 +12,16 @@ export async function GET(req: NextRequest) {
 
   const supabase = createAdminClient();
 
-  // Busca lembretes que devem ser disparados agora (atrasados ou exatamente no horário)
+  // 1. Busca lembretes pendentes que já passaram do horário
   const { data: reminders, error } = await supabase
     .from("reminders")
-    .select(`
-      id,
-      user_id,
-      title,
-      description,
-      remind_at,
-      user_profiles!inner(
-        id,
-        full_name,
-        contacts!inner(
-          phone_number,
-          instance_name,
-          status
-        )
-      )
-    `)
+    .select("id, user_id, title, description, remind_at")
     .eq("status", "pending")
     .lte("remind_at", new Date().toISOString())
     .limit(50);
 
   if (error) {
-    console.error("[Cron/Reminders] Erro ao buscar lembretes:", error);
+    console.error("[Cron/Reminders] Erro:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
@@ -50,22 +34,35 @@ export async function GET(req: NextRequest) {
 
   for (const reminder of reminders) {
     try {
-      const profile = reminder.user_profiles as any;
-      const contact = profile?.contacts?.find(
-        (c: any) => c.status === "aprovado"
-      ) || profile?.contacts?.[0];
+      // 2. Busca o profile (user_id do reminder → user_profiles.id)
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("id, full_name, user_id")
+        .eq("id", reminder.user_id)
+        .single();
+
+      if (!profile) {
+        await supabase.from("reminders").update({ status: "sent" }).eq("id", reminder.id);
+        continue;
+      }
+
+      // 3. Busca o contato pelo auth user_id (contacts.user_id = auth.users.id)
+      const { data: contact } = await supabase
+        .from("contacts")
+        .select("phone_number, instance_name, status")
+        .eq("user_id", profile.user_id)
+        .eq("status", "aprovado")
+        .maybeSingle();
 
       if (!contact?.phone_number) {
-        console.warn(`[Cron/Reminders] Sem telefone para lembrete ${reminder.id}`);
-        // Marca como enviado para não ficar tentando infinitamente
         await supabase.from("reminders").update({ status: "sent" }).eq("id", reminder.id);
         continue;
       }
 
       const instanceName = contact.instance_name || process.env.EVOLUTION_INSTANCE_NAME || "IASMIN";
-      const firstName = profile?.full_name?.split(" ")[0] || "você";
+      const firstName = profile.full_name?.split(" ")[0] || "você";
 
-      const msg = `⏰ *Lembrete, ${firstName}!*\n\n${reminder.title}${reminder.description && reminder.description !== reminder.title ? `\n\n_${reminder.description}_` : ""}`;
+      const msg = `⏰ *Lembrete, ${firstName}!*\n\n${reminder.title}`;
 
       await sendTextMessage(contact.phone_number, msg, instanceName);
 
@@ -76,11 +73,10 @@ export async function GET(req: NextRequest) {
 
       fired++;
     } catch (err) {
-      console.error(`[Cron/Reminders] Erro ao disparar lembrete ${reminder.id}:`, err);
+      console.error(`[Cron/Reminders] Erro no lembrete ${reminder.id}:`, err);
       failed++;
     }
   }
 
-  console.log(`[Cron/Reminders] Disparados: ${fired}, Falhas: ${failed}`);
   return NextResponse.json({ ok: true, fired, failed });
 }
