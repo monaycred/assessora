@@ -101,6 +101,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
+=======
+    // Evolution v2 envia o objeto da mensagem direto em data (com key, message, etc.)
+    // data?.messages?.[0] cobre o caso de array; fallback é data diretamente
     const message = data?.messages?.[0] || data;
     if (!message) return NextResponse.json({ ok: true });
 

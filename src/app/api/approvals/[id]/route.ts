@@ -30,7 +30,10 @@ export async function PATCH(
 
     // ── APROVAR ───────────────────────────────────────────────────────────
     if (action === "approve") {
-      // Cria usuario no Supabase Auth via invite (envia email automatico com link de acesso)
+      let userId: string | null = null;
+      let isExistingUser = false;
+
+      // Tenta criar via invite
       const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
         contact.email,
         {
@@ -44,11 +47,37 @@ export async function PATCH(
       );
 
       if (inviteError) {
-        console.error("[Approvals] Erro ao criar usuario:", inviteError);
-        return NextResponse.json({ error: `Erro ao criar usuario: ${inviteError.message}` }, { status: 500 });
+        // Se ja existe, busca o usuario pelo email
+        const alreadyExists =
+          inviteError.message?.toLowerCase().includes("already been registered") ||
+          inviteError.message?.toLowerCase().includes("already registered") ||
+          inviteError.code === "email_exists";
+
+        if (!alreadyExists) {
+          console.error("[Approvals] Erro ao criar usuario:", inviteError);
+          return NextResponse.json({ error: `Erro ao criar usuario: ${inviteError.message}` }, { status: 500 });
+        }
+
+        // Busca usuario existente pelo email
+        const { data: { users }, error: listError } = await supabase.auth.admin.listUsers();
+        if (!listError) {
+          const existing = users.find((u) => u.email === contact.email);
+          if (existing) {
+            userId = existing.id;
+            isExistingUser = true;
+          }
+        }
+      } else {
+        userId = inviteData?.user?.id ?? null;
       }
 
-      const userId = inviteData?.user?.id;
+      // Se usuario ja existia, atualiza o phone no perfil em vez de enviar invite
+      if (isExistingUser && userId) {
+        await supabase
+          .from("user_profiles")
+          .update({ phone: contact.phone_number })
+          .eq("user_id", userId);
+      }
 
       // Atualiza contato para aprovado
       await supabase.from("contacts").update({
@@ -57,19 +86,20 @@ export async function PATCH(
         approved_at: new Date().toISOString(),
       }).eq("id", id);
 
+      // Mensagem diferente se usuario ja existia
+      const whatsappMsg = isExistingUser
+        ? `✅ *${contact.name?.split(" ")[0]}, seu numero foi vinculado!*\n\nSeu WhatsApp foi associado à sua conta na Iasmin.\n\nPode me chamar por aqui quando quiser 😊`
+        : `✅ *Parabens, ${contact.name?.split(" ")[0]}!*\n\nSua conta na Iasmin foi aprovada!\n\nVerifique seu email *${contact.email}* — enviamos um link para voce criar sua senha e acessar o painel.\n\nDepois de criar sua senha, pode me chamar aqui mesmo pelo WhatsApp 😊`;
+
       // Notifica pelo WhatsApp
-      await sendTextMessage(
-        contact.phone_number,
-        `✅ *Parabens, ${contact.name?.split(" ")[0]}!*\n\nSua conta na Iasmin foi aprovada!\n\nVerifique seu email *${contact.email}* — enviamos um link para voce criar sua senha e acessar o painel.\n\nDepois de criar sua senha, pode me chamar aqui mesmo pelo WhatsApp 😊`,
-        contact.instance_name
-      );
+      await sendTextMessage(contact.phone_number, whatsappMsg, contact.instance_name);
 
       // Log de auditoria
       await supabase.from("webhook_logs").insert({
         instance_name: contact.instance_name,
         from_number: contact.phone_number,
         event_type: "approved",
-        result: `user_id: ${userId}`,
+        result: `user_id: ${userId} | existing: ${isExistingUser}`,
       });
 
       return NextResponse.json({ success: true, status: "aprovado", user_id: userId });
