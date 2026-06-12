@@ -18,10 +18,18 @@ export default function LembretesPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // reminders.user_id referencia user_profiles.id, não auth.users.id
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .single();
+    const profileId = profile?.id || user.id;
+
     const { data } = await supabase
       .from("reminders")
       .select("*")
-      .eq("user_id", user.id)
+      .eq("user_id", profileId)
       .order("remind_at", { ascending: true });
 
     setReminders(data || []);

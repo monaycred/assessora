@@ -22,6 +22,14 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // reminders/expenses/messages usam user_profiles.id, não auth.users.id
+  const { data: userProfile } = await supabase
+    .from("user_profiles")
+    .select("id")
+    .eq("user_id", user?.id || "")
+    .single();
+  const profileId = userProfile?.id || user?.id || "";
+
   // Busca dados do dashboard
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -39,18 +47,18 @@ export default async function DashboardPage() {
     supabase
       .from("reminders")
       .select("*", { count: "exact", head: true })
-      .eq("user_id", user?.id || "")
+      .eq("user_id", profileId)
       .eq("status", "pending"),
     supabase
       .from("expenses")
       .select("*")
-      .eq("user_id", user?.id || "")
+      .eq("user_id", profileId)
       .order("created_at", { ascending: false })
       .limit(5),
     supabase
       .from("messages")
       .select("*")
-      .eq("user_id", user?.id || "")
+      .eq("user_id", profileId)
       .gte("created_at", todayStart.toISOString())
       .order("created_at", { ascending: false })
       .limit(5),
@@ -62,7 +70,7 @@ export default async function DashboardPage() {
   const { data: monthExpenses } = await supabase
     .from("expenses")
     .select("amount")
-    .eq("user_id", user?.id || "")
+    .eq("user_id", profileId)
     .gte("expense_date", firstDay);
 
   const totalMonth = (monthExpenses || []).reduce(
