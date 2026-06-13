@@ -337,7 +337,7 @@ export default function ProjetosPage() {
       </div>
 
       {/* Modal novo projeto */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Novo Projeto">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Novo Projeto">
         <div className="space-y-4">
           <Input
             label="Nome do projeto"
