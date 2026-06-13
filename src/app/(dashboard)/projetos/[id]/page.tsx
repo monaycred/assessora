@@ -373,7 +373,7 @@ export default function ProjectBoardPage() {
               <button
                 onClick={() => setViewMode("eisenhower")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  viewMode === "eisenhower" ? "bg-dark-700 text-white" : "text-dark-500 hover:text-dark-300"
+                  viewMode === "eisenhower" ? "bg-dark-700 text-dark-100" : "text-dark-500 hover:text-dark-300"
                 }`}
               >
                 <Grid2X2 className="w-3.5 h-3.5" /> Eisenhower
@@ -381,7 +381,7 @@ export default function ProjectBoardPage() {
               <button
                 onClick={() => setViewMode("kanban")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  viewMode === "kanban" ? "bg-dark-700 text-white" : "text-dark-500 hover:text-dark-300"
+                  viewMode === "kanban" ? "bg-dark-700 text-dark-100" : "text-dark-500 hover:text-dark-300"
                 }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" /> Kanban
@@ -417,12 +417,12 @@ export default function ProjectBoardPage() {
                 <div key={`${q.urgent}-${q.important}`} className={`rounded-xl border p-4 min-h-[220px] ${q.bg}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="text-xs font-bold text-white">{q.label}</p>
+                      <p className="text-xs font-bold text-dark-100">{q.label}</p>
                       <p className="text-[10px] text-dark-500 mt-0.5">{q.sub}</p>
                     </div>
                     <button
                       onClick={() => openNew({ is_urgent: q.urgent, is_important: q.important })}
-                      className="w-6 h-6 flex items-center justify-center rounded-md bg-dark-800/60 hover:bg-dark-700 text-dark-500 hover:text-white transition-all"
+                      className="w-6 h-6 flex items-center justify-center rounded-md bg-dark-800/60 hover:bg-dark-700 text-dark-500 hover:text-dark-200 transition-all"
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -512,7 +512,7 @@ export default function ProjectBoardPage() {
                       if (e.key === "Escape") setAddingCol(false);
                     }}
                     placeholder="Nome da etapa..."
-                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-dark-100 placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
                   />
                   <div className="flex gap-1.5">
                     <button
@@ -616,8 +616,8 @@ export default function ProjectBoardPage() {
                           : "opacity-60 hover:opacity-90"
                       }`}
                     >
-                      <p className="text-[10px] font-bold text-white leading-tight">{q.label}</p>
-                      <p className="text-[9px] text-white/60 mt-0.5">{q.sub}</p>
+                      <p className="text-[10px] font-bold text-dark-100 leading-tight">{q.label}</p>
+                      <p className="text-[9px] text-dark-100/60 mt-0.5">{q.sub}</p>
                     </button>
                   ))}
                 </div>
@@ -724,7 +724,7 @@ export default function ProjectBoardPage() {
                           className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500/60"
                         />
                         <button onClick={handleAddLink} disabled={!newLink.url.trim()}
-                          className="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-[10px] font-bold hover:bg-primary-600 disabled:opacity-40 transition-colors"
+                          className="px-3 py-1.5 bg-primary-500 text-dark-100 rounded-lg text-[10px] font-bold hover:bg-primary-600 disabled:opacity-40 transition-colors"
                         >OK</button>
                         <button onClick={() => { setAddingLink(false); setNewLink({ name: "", url: "" }); }}
                           className="px-2 py-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-colors"
@@ -805,7 +805,7 @@ function TaskCard({
     >
       <div className="flex items-start gap-2 mb-2">
         <span className="text-xs mt-0.5 flex-shrink-0">{emoji}</span>
-        <p className="text-xs font-semibold text-white flex-1 leading-snug">{task.title}</p>
+        <p className="text-xs font-semibold text-dark-100 flex-1 leading-snug">{task.title}</p>
       </div>
 
       <div className="flex flex-wrap gap-1">
@@ -849,7 +849,7 @@ function TaskCard({
               <button
                 key={c.slug}
                 onClick={() => onMove(task.id, c.slug)}
-                className="flex-1 text-[9px] py-1 bg-dark-700 hover:bg-dark-600 rounded text-dark-400 hover:text-white transition-all truncate px-1"
+                className="flex-1 text-[9px] py-1 bg-dark-700 hover:bg-dark-600 rounded text-dark-400 hover:text-dark-200 transition-all truncate px-1"
                 title={c.name}
               >
                 {c.name.split(" ")[0]}

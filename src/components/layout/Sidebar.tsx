@@ -103,15 +103,15 @@ export default function Sidebar() {
   });
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-60 bg-dark-950 border-r border-dark-800/50 flex flex-col z-40">
+    <aside className="fixed left-0 top-0 h-full w-60 bg-dark-950 border-r border-dark-700 flex flex-col z-40">
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-dark-800/50">
+      <div className="px-5 py-5 border-b border-dark-700">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-primary-500" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">Iasmin</p>
+            <p className="text-sm font-bold text-dark-100 leading-tight">Iasmin</p>
             <p className="text-[10px] text-dark-400 leading-tight">
               Sua assessora virtual
             </p>
@@ -147,13 +147,13 @@ export default function Sidebar() {
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group mb-0.5",
                 isActive
                   ? "bg-primary-500/10 text-primary-500 border border-primary-500/20"
-                  : "text-dark-400 hover:text-white hover:bg-dark-800/60"
+                  : "text-dark-400 hover:text-dark-200 hover:bg-dark-800/60"
               )}
             >
               <navItem.icon
                 className={cn(
                   "w-4 h-4 transition-colors",
-                  isActive ? "text-primary-500" : "text-dark-500 group-hover:text-white"
+                  isActive ? "text-primary-500" : "text-dark-500 group-hover:text-dark-200"
                 )}
               />
               <span className="font-medium">{navItem.name}</span>
@@ -163,7 +163,7 @@ export default function Sidebar() {
       </nav>
 
       {/* Logout */}
-      <div className="p-3 border-t border-dark-800/50">
+      <div className="p-3 border-t border-dark-700">
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-dark-400 hover:text-red-400 hover:bg-red-500/10 transition-all w-full"

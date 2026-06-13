@@ -26,7 +26,7 @@ export default async function AgendaPage() {
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <Calendar className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">Próximos Eventos</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Próximos Eventos</h3>
           </div>
 
           {!events || events.length === 0 ? (
@@ -53,7 +53,7 @@ export default async function AgendaPage() {
                     </p>
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-white">{event.title}</p>
+                    <p className="text-sm font-semibold text-dark-100">{event.title}</p>
                     <div className="flex items-center gap-3 mt-1">
                       <div className="flex items-center gap-1 text-xs text-dark-400">
                         <Clock className="w-3 h-3" />

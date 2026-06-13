@@ -58,7 +58,7 @@ export default function ConfiguracoesPage() {
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <User className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">Meu Perfil</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Meu Perfil</h3>
           </div>
 
           {loading ? (
@@ -109,11 +109,11 @@ export default function ConfiguracoesPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Sparkles className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">Sobre a Iasmin</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Sobre a Iasmin</h3>
           </div>
           <div className="space-y-3 text-sm text-dark-400">
             <p>
-              A <strong className="text-white">Iasmin</strong> é sua assessora
+              A <strong className="text-dark-100">Iasmin</strong> é sua assessora
               pessoal via WhatsApp. Ela registra despesas, cria lembretes, organiza
               documentos e muito mais.
             </p>
@@ -123,7 +123,7 @@ export default function ConfiguracoesPage() {
                 "Iasmin, registra mercado 150 no débito"
               </span>
             </p>
-            <div className="p-3 bg-dark-800 rounded-lg border border-dark-700/50">
+            <div className="p-3 bg-dark-800 rounded-lg border border-dark-700">
               <p className="text-xs font-semibold text-dark-300 mb-2">
                 Exemplos de comandos:
               </p>
@@ -142,12 +142,12 @@ export default function ConfiguracoesPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Shield className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-semibold text-white">Segurança</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Segurança</h3>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between py-3 border-b border-dark-800/50">
+            <div className="flex items-center justify-between py-3 border-b border-dark-700">
               <div>
-                <p className="text-sm text-white">Alterar senha</p>
+                <p className="text-sm text-dark-100">Alterar senha</p>
                 <p className="text-xs text-dark-400">
                   Você receberá um link por e-mail
                 </p>
@@ -158,7 +158,7 @@ export default function ConfiguracoesPage() {
             </div>
             <div className="flex items-center justify-between py-3">
               <div>
-                <p className="text-sm text-white">Números autorizados</p>
+                <p className="text-sm text-dark-100">Números autorizados</p>
                 <p className="text-xs text-dark-400">
                   Gerencie seus números de WhatsApp
                 </p>

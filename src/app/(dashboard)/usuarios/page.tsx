@@ -21,7 +21,7 @@ export default async function UsuariosPage() {
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <Users className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">
+            <h3 className="text-sm font-semibold text-dark-100">
               Todos os Usuários ({users?.length || 0})
             </h3>
           </div>
@@ -43,7 +43,7 @@ export default async function UsuariosPage() {
                       <User className="w-4 h-4 text-primary-500" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-white">{u.full_name}</p>
+                      <p className="text-sm font-medium text-dark-100">{u.full_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-dark-400">{formatCPF(u.cpf)}</p>
                         <span className="text-dark-600">•</span>

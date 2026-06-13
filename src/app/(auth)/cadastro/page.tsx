@@ -89,7 +89,7 @@ export default function CadastroPage() {
           <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/30 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-8 h-8 text-primary-500" />
           </div>
-          <h2 className="text-xl font-bold text-white mb-2">Conta criada!</h2>
+          <h2 className="text-xl font-bold text-dark-100 mb-2">Conta criada!</h2>
           <p className="text-dark-400 text-sm">
             Redirecionando para o login...
           </p>
@@ -109,12 +109,12 @@ export default function CadastroPage() {
           <div className="w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/30 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-primary-500" />
           </div>
-          <h1 className="text-2xl font-bold text-white">Iasmin</h1>
+          <h1 className="text-2xl font-bold text-dark-100">Iasmin</h1>
           <p className="text-sm text-dark-400 mt-1">Crie sua conta</p>
         </div>
 
         <div className="bg-dark-900 border border-dark-700/50 rounded-2xl p-7 shadow-2xl">
-          <h2 className="text-lg font-semibold text-white mb-1">Cadastro</h2>
+          <h2 className="text-lg font-semibold text-dark-100 mb-1">Cadastro</h2>
           <p className="text-sm text-dark-400 mb-6">
             Preencha seus dados para criar sua conta
           </p>
@@ -184,7 +184,7 @@ export default function CadastroPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="text-dark-400 hover:text-white transition-colors"
+                  className="text-dark-400 hover:text-dark-200 transition-colors"
                 >
                   {showPassword ? (
                     <EyeOff className="w-4 h-4" />

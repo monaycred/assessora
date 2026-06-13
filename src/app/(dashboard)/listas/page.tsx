@@ -108,7 +108,7 @@ export default function ListasPage() {
                     <div className="flex items-center gap-3">
                       <ShoppingCart className="w-4 h-4 text-primary-500" />
                       <div>
-                        <p className="text-sm font-semibold text-white">
+                        <p className="text-sm font-semibold text-dark-100">
                           {list.name}
                         </p>
                         <p className="text-xs text-dark-400">
@@ -137,7 +137,7 @@ export default function ListasPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="mt-4 space-y-2 border-t border-dark-800/50 pt-4">
+                    <div className="mt-4 space-y-2 border-t border-dark-700 pt-4">
                       {items.length === 0 ? (
                         <p className="text-xs text-dark-500 text-center py-3">
                           Lista vazia
@@ -166,7 +166,7 @@ export default function ListasPage() {
                               className={`text-sm ${
                                 item.is_checked
                                   ? "line-through text-dark-500"
-                                  : "text-white"
+                                  : "text-dark-100"
                               }`}
                             >
                               {item.name}

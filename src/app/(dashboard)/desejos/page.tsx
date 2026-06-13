@@ -76,7 +76,7 @@ export default function DesejosPage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Heart className="w-4 h-4 text-primary-500 flex-shrink-0" />
-                    <p className="text-sm font-semibold text-white">{item.name}</p>
+                    <p className="text-sm font-semibold text-dark-100">{item.name}</p>
                   </div>
                   <Badge variant={PRIORITY_VARIANTS[item.priority] || "default"}>
                     {PRIORITY_LABELS[item.priority as keyof typeof PRIORITY_LABELS] || item.priority}
@@ -103,7 +103,7 @@ export default function DesejosPage() {
                       href={item.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-2 rounded-lg text-dark-400 hover:text-white hover:bg-dark-800 transition-colors"
+                      className="p-2 rounded-lg text-dark-400 hover:text-dark-200 hover:bg-dark-800 transition-colors"
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
@@ -138,7 +138,7 @@ export default function DesejosPage() {
               {purchased.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between py-2 border-b border-dark-800/50 last:border-0 opacity-50"
+                  className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0 opacity-50"
                 >
                   <div className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-green-400" />

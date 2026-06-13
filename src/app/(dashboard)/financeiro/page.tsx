@@ -89,7 +89,7 @@ export default function FinanceiroPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-dark-400 mb-1">Total do Mês</p>
-                <p className="text-3xl font-bold text-white">
+                <p className="text-3xl font-bold text-dark-100">
                   {formatCurrency(total)}
                 </p>
               </div>
@@ -111,7 +111,7 @@ export default function FinanceiroPage() {
                   <span className="text-xs text-dark-300">
                     {CATEGORY_LABELS[cat] || cat}
                   </span>
-                  <span className="text-xs font-semibold text-white">
+                  <span className="text-xs font-semibold text-dark-100">
                     {formatCurrency(value as number)}
                   </span>
                 </div>
@@ -128,13 +128,13 @@ export default function FinanceiroPage() {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <DollarSign className="w-4 h-4 text-primary-500" />
-              <h3 className="text-sm font-semibold text-white">Despesas</h3>
+              <h3 className="text-sm font-semibold text-dark-100">Despesas</h3>
             </div>
             <div className="flex items-center gap-2">
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary-500/50"
+                className="bg-dark-800 border border-dark-700 rounded-lg px-3 py-1.5 text-xs text-dark-100 focus:outline-none focus:border-primary-500/50"
               >
                 <option value="all">Todas</option>
                 {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
@@ -158,14 +158,14 @@ export default function FinanceiroPage() {
               {expenses.map((expense) => (
                 <div
                   key={expense.id}
-                  className="flex items-center justify-between py-3 border-b border-dark-800/50 last:border-0"
+                  className="flex items-center justify-between py-3 border-b border-dark-700 last:border-0"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-dark-800 flex items-center justify-center">
                       <CreditCard className="w-4 h-4 text-dark-400" />
                     </div>
                     <div>
-                      <p className="text-sm text-white">{expense.description}</p>
+                      <p className="text-sm text-dark-100">{expense.description}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-dark-500">
                           {formatDate(expense.expense_date)}
@@ -182,7 +182,7 @@ export default function FinanceiroPage() {
                     <Badge variant={CATEGORY_COLORS[expense.category] || "default"}>
                       {CATEGORY_LABELS[expense.category] || expense.category}
                     </Badge>
-                    <span className="text-sm font-semibold text-white min-w-[80px] text-right">
+                    <span className="text-sm font-semibold text-dark-100 min-w-[80px] text-right">
                       {formatCurrency(expense.amount)}
                     </span>
                   </div>

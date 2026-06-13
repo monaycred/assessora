@@ -48,23 +48,23 @@ export default async function TokensPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <p className="text-xs text-dark-400 mb-1">Total de Tokens</p>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-dark-100">
               {totalTokens.toLocaleString("pt-BR")}
             </p>
           </Card>
           <Card>
             <p className="text-xs text-dark-400 mb-1">Custo Estimado</p>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-dark-100">
               {formatCurrency(totalCost)}
             </p>
           </Card>
           <Card>
             <p className="text-xs text-dark-400 mb-1">Mensagens</p>
-            <p className="text-2xl font-bold text-white">{totalMessages}</p>
+            <p className="text-2xl font-bold text-dark-100">{totalMessages}</p>
           </Card>
           <Card>
             <p className="text-xs text-dark-400 mb-1">Limite Mensal</p>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-dark-100">
               {MONTHLY_LIMIT.toLocaleString("pt-BR")}
             </p>
           </Card>
@@ -75,7 +75,7 @@ export default async function TokensPage() {
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-primary-500" />
-              <h3 className="text-sm font-semibold text-white">Uso do Mês</h3>
+              <h3 className="text-sm font-semibold text-dark-100">Uso do Mês</h3>
             </div>
             <Badge
               variant={
@@ -123,7 +123,7 @@ export default async function TokensPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Cpu className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-semibold text-white">Histórico de Uso</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Histórico de Uso</h3>
           </div>
 
           {!allLogs || allLogs.length === 0 ? (
@@ -147,7 +147,7 @@ export default async function TokensPage() {
                   {allLogs.map((log) => (
                     <tr
                       key={log.id}
-                      className="border-b border-dark-800/50 last:border-0"
+                      className="border-b border-dark-700 last:border-0"
                     >
                       <td className="py-3 text-dark-400 text-xs">
                         {formatRelativeDate(log.created_at)}
@@ -158,7 +158,7 @@ export default async function TokensPage() {
                         </Badge>
                       </td>
                       <td className="py-3 text-dark-300 text-xs">{log.model}</td>
-                      <td className="py-3 text-right text-white">
+                      <td className="py-3 text-right text-dark-100">
                         {(log.total_tokens || 0).toLocaleString("pt-BR")}
                       </td>
                       <td className="py-3 text-right text-dark-300">

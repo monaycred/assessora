@@ -75,7 +75,7 @@ export default async function IntegracoesPage() {
               <ExternalLink className="w-4 h-4 text-primary-500" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-dark-100">
                 Integrações Google (em breve)
               </p>
               <p className="text-xs text-dark-400 mt-1">
@@ -101,7 +101,7 @@ export default async function IntegracoesPage() {
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-semibold text-white">
+                      <p className="text-sm font-semibold text-dark-100">
                         {service.name}
                       </p>
                       {isConnected ? (

@@ -85,7 +85,7 @@ export default function IAConfigPage() {
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <Sparkles className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">Provedor de IA</h3>
+            <h3 className="text-sm font-semibold text-dark-100">Provedor de IA</h3>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-5">
@@ -98,7 +98,7 @@ export default function IAConfigPage() {
                   : "border-dark-700 bg-dark-800/40 hover:border-dark-600"
               }`}
             >
-              <p className="text-sm font-semibold text-white mb-1">Anthropic</p>
+              <p className="text-sm font-semibold text-dark-100 mb-1">Anthropic</p>
               <p className="text-xs text-dark-400">Claude — melhor para português e contexto longo</p>
             </button>
 
@@ -111,7 +111,7 @@ export default function IAConfigPage() {
                   : "border-dark-700 bg-dark-800/40 hover:border-dark-600"
               }`}
             >
-              <p className="text-sm font-semibold text-white mb-1">OpenAI</p>
+              <p className="text-sm font-semibold text-dark-100 mb-1">OpenAI</p>
               <p className="text-xs text-dark-400">GPT — mais barato, boa capacidade geral</p>
             </button>
           </div>
@@ -123,7 +123,7 @@ export default function IAConfigPage() {
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                className="w-full bg-dark-800 border border-dark-700 text-white text-sm rounded-lg px-3 py-2.5 pr-8 appearance-none focus:outline-none focus:border-primary-500"
+                className="w-full bg-dark-800 border border-dark-700 text-dark-100 text-sm rounded-lg px-3 py-2.5 pr-8 appearance-none focus:outline-none focus:border-primary-500"
               >
                 {models.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -140,7 +140,7 @@ export default function IAConfigPage() {
         <Card>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-semibold text-white">Inteligência da Iasmin</h3>
+              <h3 className="text-sm font-semibold text-dark-100">Inteligência da Iasmin</h3>
               <p className="text-xs text-dark-400 mt-0.5">
                 Define o que ela faz, como responde e quais comandos reconhece
               </p>
@@ -148,7 +148,7 @@ export default function IAConfigPage() {
             {isDirty && (
               <button
                 onClick={() => setSystemPrompt(originalPrompt)}
-                className="flex items-center gap-1.5 text-xs text-dark-400 hover:text-white transition-colors"
+                className="flex items-center gap-1.5 text-xs text-dark-400 hover:text-dark-200 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
                 Desfazer
@@ -165,7 +165,7 @@ export default function IAConfigPage() {
               value={systemPrompt}
               onChange={(e) => setSystemPrompt(e.target.value)}
               rows={24}
-              className="w-full bg-dark-900 border border-dark-700 text-white text-sm font-mono rounded-lg px-4 py-3 focus:outline-none focus:border-primary-500 resize-none leading-relaxed"
+              className="w-full bg-dark-900 border border-dark-700 text-dark-100 text-sm font-mono rounded-lg px-4 py-3 focus:outline-none focus:border-primary-500 resize-none leading-relaxed"
               placeholder="Descreva aqui a personalidade, capacidades e regras da Iasmin..."
             />
           )}

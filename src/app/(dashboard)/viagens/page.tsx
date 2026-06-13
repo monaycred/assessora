@@ -37,7 +37,7 @@ export default async function ViagensPage() {
         <Card>
           <div className="flex items-center gap-2 mb-5">
             <Plane className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">
+            <h3 className="text-sm font-semibold text-dark-100">
               Minhas Viagens ({trips?.length || 0})
             </h3>
           </div>
@@ -59,7 +59,7 @@ export default async function ViagensPage() {
                 >
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <p className="text-sm font-semibold text-white">{trip.title}</p>
+                      <p className="text-sm font-semibold text-dark-100">{trip.title}</p>
                       <div className="flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-dark-400" />
                         <p className="text-xs text-dark-400">{trip.destination}</p>

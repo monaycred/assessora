@@ -191,7 +191,7 @@ export default function AprovacoesPage() {
                       <button
                         onClick={() => acao(contact.id, 'approve')}
                         disabled={processando === contact.id}
-                        className="px-4 py-2 rounded bg-[#16803A] text-white text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
+                        className="px-4 py-2 rounded bg-[#16803A] text-dark-100 text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
                       >
                         {processando === contact.id ? 'Aguarde...' : 'Aprovar'}
                       </button>

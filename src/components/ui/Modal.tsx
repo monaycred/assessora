@@ -61,10 +61,10 @@ export default function Modal({
       >
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-dark-700/50">
-            <h2 className="text-base font-semibold text-white">{title}</h2>
+            <h2 className="text-base font-semibold text-dark-100">{title}</h2>
             <button
               onClick={onClose}
-              className="text-dark-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-dark-800"
+              className="text-dark-400 hover:text-dark-200 transition-colors p-1 rounded-lg hover:bg-dark-800"
             >
               <X className="w-4 h-4" />
             </button>
@@ -73,7 +73,7 @@ export default function Modal({
         {!title && (
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 text-dark-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-dark-800 z-10"
+            className="absolute top-4 right-4 text-dark-400 hover:text-dark-200 transition-colors p-1 rounded-lg hover:bg-dark-800 z-10"
           >
             <X className="w-4 h-4" />
           </button>

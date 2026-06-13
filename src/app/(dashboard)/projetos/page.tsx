@@ -301,7 +301,7 @@ export default function ProjetosPage() {
                           style={{ backgroundColor: p.color }}
                         />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">{p.name}</p>
+                          <p className="text-sm font-semibold text-dark-100 truncate">{p.name}</p>
                           <p className="text-xs text-dark-500 mt-0.5">
                             {area.emoji} {area.label}
                             {p.description && ` · ${p.description}`}

@@ -9,7 +9,7 @@ export function Card({ children, className, glow, ...props }: CardProps) {
   return (
     <div
       className={cn(
-        "bg-dark-900 border border-dark-700/50 rounded-xl p-5",
+        "bg-dark-900 border border-dark-700 rounded-xl p-5",
         glow && "glow-primary",
         className
       )}
@@ -38,7 +38,7 @@ export function CardTitle({
   ...props
 }: HTMLAttributes<HTMLHeadingElement>) {
   return (
-    <h3 className={cn("text-base font-semibold text-white", className)} {...props}>
+    <h3 className={cn("text-base font-semibold text-dark-100", className)} {...props}>
       {children}
     </h3>
   );

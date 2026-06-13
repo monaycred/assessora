@@ -121,7 +121,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary-500" />
-                <h3 className="text-sm font-semibold text-white">
+                <h3 className="text-sm font-semibold text-dark-100">
                   Despesas Recentes
                 </h3>
               </div>
@@ -138,16 +138,16 @@ export default async function DashboardPage() {
                 {recentExpenses.map((expense: any) => (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between py-2 border-b border-dark-800/50 last:border-0"
+                    className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0"
                   >
                     <div>
-                      <p className="text-sm text-white">{expense.description}</p>
+                      <p className="text-sm text-dark-100">{expense.description}</p>
                       <p className="text-xs text-dark-400 mt-0.5">
                         {expense.payment_methods?.name || "Sem método"} •{" "}
                         {formatRelativeDate(expense.created_at)}
                       </p>
                     </div>
-                    <span className="text-sm font-semibold text-white">
+                    <span className="text-sm font-semibold text-dark-100">
                       {formatCurrency(expense.amount)}
                     </span>
                   </div>
@@ -169,7 +169,7 @@ export default async function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-semibold text-white">
+                <h3 className="text-sm font-semibold text-dark-100">
                   Mensagens Recentes
                 </h3>
               </div>
@@ -180,13 +180,13 @@ export default async function DashboardPage() {
                 {recentMessages.map((msg: any) => (
                   <div
                     key={msg.id}
-                    className="flex items-start gap-3 py-2 border-b border-dark-800/50 last:border-0"
+                    className="flex items-start gap-3 py-2 border-b border-dark-700 last:border-0"
                   >
                     <div className="w-7 h-7 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <MessageSquare className="w-3.5 h-3.5 text-green-400" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-white truncate">
+                      <p className="text-sm text-dark-100 truncate">
                         {msg.content || "(mídia)"}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5">
@@ -219,7 +219,7 @@ export default async function DashboardPage() {
               <Clock className="w-5 h-5 text-primary-500" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-white">
+              <p className="text-sm font-semibold text-dark-100">
                 Iasmin está pronta para te ajudar
               </p>
               <p className="text-xs text-dark-400 mt-0.5">

@@ -54,13 +54,13 @@ export default function StatsCard({
   return (
     <div
       className={cn(
-        "bg-dark-900 border border-dark-700/50 rounded-xl p-5 flex items-start justify-between",
+        "bg-dark-900 border border-dark-700 rounded-xl p-5 flex items-start justify-between",
         className
       )}
     >
       <div className="flex-1">
         <p className="text-xs text-dark-400 font-medium mb-1">{title}</p>
-        <p className="text-2xl font-bold text-white">{value}</p>
+        <p className="text-2xl font-bold text-dark-100">{value}</p>
         {trend && (
           <p
             className={cn(

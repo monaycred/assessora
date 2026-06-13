@@ -63,7 +63,7 @@ export default function LembretesPage() {
           <Card className="border-red-500/20">
             <div className="flex items-center gap-2 mb-4">
               <AlertCircle className="w-4 h-4 text-red-400" />
-              <h3 className="text-sm font-semibold text-white">
+              <h3 className="text-sm font-semibold text-dark-100">
                 Atrasados ({overdue.length})
               </h3>
             </div>
@@ -85,7 +85,7 @@ export default function LembretesPage() {
         <Card>
           <div className="flex items-center gap-2 mb-4">
             <Bell className="w-4 h-4 text-primary-500" />
-            <h3 className="text-sm font-semibold text-white">
+            <h3 className="text-sm font-semibold text-dark-100">
               Próximos ({upcoming.length})
             </h3>
           </div>
@@ -121,7 +121,7 @@ export default function LembretesPage() {
               {past.slice(0, 10).map((r) => (
                 <div
                   key={r.id}
-                  className="flex items-center justify-between py-2 border-b border-dark-800/50 last:border-0 opacity-50"
+                  className="flex items-center justify-between py-2 border-b border-dark-700 last:border-0 opacity-50"
                 >
                   <div className="flex items-center gap-3">
                     <Check className="w-4 h-4 text-dark-500" />
@@ -173,7 +173,7 @@ function ReminderItem({
           <Clock className={`w-4 h-4 ${overdue ? "text-red-400" : "text-primary-500"}`} />
         </div>
         <div>
-          <p className="text-sm font-medium text-white">{reminder.title}</p>
+          <p className="text-sm font-medium text-dark-100">{reminder.title}</p>
           <p className={`text-xs ${overdue ? "text-red-400" : "text-dark-400"}`}>
             {formatDate(reminder.remind_at, "dd/MM/yyyy 'às' HH:mm")} •{" "}
             {formatRelativeDate(reminder.remind_at)}

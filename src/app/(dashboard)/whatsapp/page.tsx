@@ -341,7 +341,7 @@ export default function WhatsAppPage() {
           <button
             type="submit"
             disabled={salvando}
-            className="w-full rounded bg-[#25D366] text-white text-[12px] font-medium py-2 disabled:opacity-60"
+            className="w-full rounded bg-[#25D366] text-dark-100 text-[12px] font-medium py-2 disabled:opacity-60"
           >
             {salvando ? 'Salvando...' : 'Criar instância'}
           </button>
@@ -509,7 +509,7 @@ export default function WhatsAppPage() {
               <p className="text-[12px] text-gray-400 mt-1">A instância está online e pronta.</p>
               <button
                 onClick={fecharQR}
-                className="mt-5 rounded bg-[#25D366] text-white text-[12px] font-medium px-8 py-2"
+                className="mt-5 rounded bg-[#25D366] text-dark-100 text-[12px] font-medium px-8 py-2"
               >
                 Fechar
               </button>
