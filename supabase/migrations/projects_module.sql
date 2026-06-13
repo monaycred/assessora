@@ -100,6 +100,12 @@ ALTER TABLE project_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kaizen_suggestions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "users_own_projects"    ON projects;
+DROP POLICY IF EXISTS "users_own_columns"     ON project_columns;
+DROP POLICY IF EXISTS "users_own_tasks"       ON project_tasks;
+DROP POLICY IF EXISTS "users_own_attachments" ON task_attachments;
+DROP POLICY IF EXISTS "users_own_kaizen"      ON kaizen_suggestions;
+
 CREATE POLICY "users_own_projects" ON projects
   FOR ALL USING (user_id = (SELECT id FROM user_profiles WHERE user_id = auth.uid()));
 
@@ -120,6 +126,9 @@ CREATE OR REPLACE FUNCTION update_projects_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_projects_updated_at ON projects;
+DROP TRIGGER IF EXISTS trg_project_tasks_updated_at ON project_tasks;
 
 CREATE TRIGGER trg_projects_updated_at
   BEFORE UPDATE ON projects
