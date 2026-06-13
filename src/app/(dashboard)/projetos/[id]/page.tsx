@@ -10,7 +10,7 @@ import {
   Plus, Loader2, ChevronLeft, Lightbulb, X,
   Calendar, DollarSign, MapPin, User, HelpCircle,
   Target, Wrench, LayoutDashboard, Grid2X2,
-  Link as LinkIcon, Trash2, ExternalLink,
+  Link as LinkIcon, Trash2, ExternalLink, Paperclip,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -109,6 +109,8 @@ export default function ProjectBoardPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [newLink, setNewLink]         = useState({ name: "", url: "" });
   const [addingLink, setAddingLink]   = useState(false);
+
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Nova coluna
   const [addingCol, setAddingCol]   = useState(false);
@@ -279,6 +281,27 @@ export default function ProjectBoardPage() {
   const handleDeleteAttachment = async (attId: string) => {
     await supabase.from("task_attachments").delete().eq("id", attId);
     setAttachments((a) => a.filter((x) => x.id !== attId));
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!editingTask || !userId) return;
+    setUploadingFile(true);
+    try {
+      const ext  = file.name.split(".").pop() || "bin";
+      const path = `${userId}/${editingTask.id}/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("task-attachments")
+        .upload(path, file, { upsert: false });
+      if (upErr) { alert("Erro ao enviar arquivo. Verifique se o bucket 'task-attachments' foi criado no Supabase Storage."); return; }
+      const { data: urlData } = supabase.storage.from("task-attachments").getPublicUrl(path);
+      const { data } = await supabase.from("task_attachments").insert({
+        task_id: editingTask.id, user_id: userId,
+        type: "file", name: file.name, url: urlData.publicUrl,
+      }).select().single();
+      if (data) setAttachments((a) => [...a, data]);
+    } finally {
+      setUploadingFile(false);
+    }
   };
 
   // ── Colunas customizadas ──────────────────────────────────────────────────
@@ -523,13 +546,13 @@ export default function ProjectBoardPage() {
       {panelOpen && (
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closePanel} />
-          <div className="fixed right-0 top-0 h-full w-80 bg-dark-950 border-l border-dark-800 z-50 flex flex-col shadow-2xl">
+          <div className="fixed right-0 top-0 h-full w-96 bg-white border-l border-gray-200 z-50 flex flex-col shadow-2xl">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-dark-800">
-              <p className="text-sm font-bold text-white">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <p className="text-sm font-bold text-gray-900">
                 {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
               </p>
-              <button onClick={closePanel} className="text-dark-500 hover:text-white transition-colors">
+              <button onClick={closePanel} className="text-gray-400 hover:text-gray-700 transition-colors p-1 rounded-lg hover:bg-gray-100">
                 <X className="w-4 h-4" />
               </button>
             </div>
@@ -537,28 +560,31 @@ export default function ProjectBoardPage() {
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
               {/* Título */}
-              <Input
-                label="Título *"
-                value={form.title}
-                onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                placeholder="O que precisa ser feito?"
-              />
-
-              {/* Descrição */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-1.5">Descrição</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Título *</label>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                  placeholder="O que precisa ser feito?"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500/60 focus:bg-white"
+                />
+              </div>
+
+              {/* Anotações */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Anotações</label>
                 <textarea
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                  placeholder="Detalhe a tarefa..."
-                  rows={2}
-                  className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50 resize-none"
+                  placeholder="Escreva detalhes, observações, contexto da tarefa..."
+                  rows={5}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500/60 focus:bg-white resize-none"
                 />
               </div>
 
               {/* Etapa Kanban */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-2">Etapa</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-2">Etapa</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {columns.map((col) => (
                     <button
@@ -566,8 +592,8 @@ export default function ProjectBoardPage() {
                       onClick={() => setForm((f) => ({ ...f, kanban_status: col.slug }))}
                       className={`py-1.5 px-2 rounded-lg border text-[10px] font-semibold transition-all ${
                         form.kanban_status === col.slug
-                          ? "border-primary-500/60 bg-primary-500/10 text-primary-300"
-                          : "border-dark-700 text-dark-500 hover:border-dark-600"
+                          ? "border-primary-500 bg-primary-50 text-primary-600"
+                          : "border-gray-200 text-gray-400 hover:border-gray-400 hover:text-gray-600"
                       }`}
                     >
                       {col.name}
@@ -578,7 +604,7 @@ export default function ProjectBoardPage() {
 
               {/* Prioridade Eisenhower */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-2">Prioridade</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-2">Prioridade</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {EISENHOWER_QUADS.map((q) => (
                     <button
@@ -591,7 +617,7 @@ export default function ProjectBoardPage() {
                       }`}
                     >
                       <p className="text-[10px] font-bold text-white leading-tight">{q.label}</p>
-                      <p className="text-[9px] text-dark-500 mt-0.5">{q.sub}</p>
+                      <p className="text-[9px] text-white/60 mt-0.5">{q.sub}</p>
                     </button>
                   ))}
                 </div>
@@ -599,18 +625,18 @@ export default function ProjectBoardPage() {
 
               {/* Vencimento */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-1.5">Vencimento</label>
+                <label className="block text-xs font-semibold text-gray-500 mb-1.5">Vencimento</label>
                 <input
                   type="date"
                   value={form.due_date}
                   onChange={(e) => setForm((f) => ({ ...f, due_date: e.target.value }))}
-                  className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-primary-500/50"
+                  className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 focus:outline-none focus:border-primary-500/60 focus:bg-white"
                 />
               </div>
 
-              {/* 5W2H — disponível para TODAS as tarefas */}
-              <div className="border-t border-dark-800 pt-4">
-                <p className="text-xs font-bold text-primary-400 mb-3 flex items-center gap-1.5">
+              {/* 5W2H */}
+              <div className="border-t border-gray-100 pt-4">
+                <p className="text-xs font-bold text-primary-500 mb-3 flex items-center gap-1.5">
                   <Target className="w-3.5 h-3.5" /> 5W2H
                 </p>
                 <div className="space-y-3">
@@ -624,7 +650,7 @@ export default function ProjectBoardPage() {
                     { field: "how_much",    label: "Quanto? (How Much)", icon: <DollarSign className="w-3 h-3" />, type: "number", ph: "0,00" },
                   ].map(({ field, label, icon, type, ph }) => (
                     <div key={field}>
-                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-dark-500 uppercase tracking-wide mb-1">
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
                         {icon} {label}
                       </label>
                       <input
@@ -632,42 +658,38 @@ export default function ProjectBoardPage() {
                         value={(form as unknown as Record<string, string>)[field]}
                         onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
                         placeholder={ph}
-                        className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                        className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500/60 focus:bg-white"
                       />
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* Links e Anexos — só ao editar tarefa existente */}
+              {/* Anexos — só ao editar tarefa existente */}
               {editingTask && (
-                <div className="border-t border-dark-800 pt-4">
-                  <p className="text-xs font-bold text-dark-300 flex items-center gap-1.5 mb-3">
-                    <LinkIcon className="w-3.5 h-3.5" /> Links e Anexos
+                <div className="border-t border-gray-100 pt-4">
+                  <p className="text-xs font-bold text-gray-700 flex items-center gap-1.5 mb-3">
+                    <Paperclip className="w-3.5 h-3.5" /> Anexos
                   </p>
 
-                  {/* Anexos existentes */}
+                  {/* Lista de anexos */}
                   {attachments.length > 0 && (
                     <div className="space-y-1.5 mb-3">
                       {attachments.map((att) => (
-                        <div
-                          key={att.id}
-                          className="flex items-center gap-2 bg-dark-900 rounded-lg px-2.5 py-2 group"
-                        >
-                          <LinkIcon className="w-3 h-3 text-primary-400 flex-shrink-0" />
-                          <a
-                            href={att.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 text-[11px] text-dark-200 hover:text-primary-300 truncate"
+                        <div key={att.id} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 group">
+                          {att.type === "file"
+                            ? <Paperclip className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                            : <LinkIcon  className="w-3 h-3 text-primary-400 flex-shrink-0" />
+                          }
+                          <a href={att.url} target="_blank" rel="noopener noreferrer"
+                            className="flex-1 text-[11px] text-gray-600 hover:text-primary-600 truncate"
                             onClick={(e) => e.stopPropagation()}
                           >
                             {att.name}
                           </a>
-                          <ExternalLink className="w-3 h-3 text-dark-500 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <button
-                            onClick={() => handleDeleteAttachment(att.id)}
-                            className="w-4 h-4 flex items-center justify-center text-dark-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <button onClick={() => handleDeleteAttachment(att.id)}
+                            className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -676,66 +698,71 @@ export default function ProjectBoardPage() {
                     </div>
                   )}
 
-                  {/* Form novo link — inline compacto */}
+                  {/* Botões Link / Arquivo */}
                   {addingLink ? (
                     <div className="space-y-1.5">
                       <input
                         autoFocus
                         value={newLink.url}
                         onChange={(e) => setNewLink((l) => ({ ...l, url: e.target.value }))}
-                        onKeyDown={(e) => { if (e.key === "Enter" && newLink.url.trim()) handleAddLink(); if (e.key === "Escape") { setAddingLink(false); setNewLink({ name: "", url: "" }); } }}
-                        placeholder="Cole o link aqui (ex: https://drive.google.com/...)"
-                        className="w-full bg-dark-900 border border-primary-500/40 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && newLink.url.trim()) handleAddLink();
+                          if (e.key === "Escape") { setAddingLink(false); setNewLink({ name: "", url: "" }); }
+                        }}
+                        placeholder="Cole o link (ex: https://drive.google.com/...)"
+                        className="w-full bg-gray-50 border border-primary-300 rounded-lg px-3 py-2 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500 focus:bg-white"
                       />
                       <div className="flex gap-1.5">
                         <input
                           value={newLink.name}
                           onChange={(e) => setNewLink((l) => ({ ...l, name: e.target.value }))}
-                          onKeyDown={(e) => { if (e.key === "Enter" && newLink.url.trim()) handleAddLink(); if (e.key === "Escape") { setAddingLink(false); setNewLink({ name: "", url: "" }); } }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && newLink.url.trim()) handleAddLink();
+                            if (e.key === "Escape") { setAddingLink(false); setNewLink({ name: "", url: "" }); }
+                          }}
                           placeholder="Nome (opcional)"
-                          className="flex-1 bg-dark-900 border border-dark-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                          className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-900 placeholder-gray-400 focus:outline-none focus:border-primary-500/60"
                         />
-                        <button
-                          onClick={handleAddLink}
-                          disabled={!newLink.url.trim()}
+                        <button onClick={handleAddLink} disabled={!newLink.url.trim()}
                           className="px-3 py-1.5 bg-primary-500 text-white rounded-lg text-[10px] font-bold hover:bg-primary-600 disabled:opacity-40 transition-colors"
-                        >
-                          Adicionar
-                        </button>
-                        <button
-                          onClick={() => { setAddingLink(false); setNewLink({ name: "", url: "" }); }}
-                          className="px-2 py-1.5 bg-dark-800 text-dark-500 rounded-lg text-[10px] hover:bg-dark-700 transition-colors"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
+                        >OK</button>
+                        <button onClick={() => { setAddingLink(false); setNewLink({ name: "", url: "" }); }}
+                          className="px-2 py-1.5 bg-gray-100 text-gray-500 rounded-lg hover:bg-gray-200 transition-colors"
+                        ><X className="w-3 h-3" /></button>
                       </div>
-                      <p className="text-[10px] text-dark-600">Pressione Enter para salvar · Esc para cancelar</p>
+                      <p className="text-[10px] text-gray-400">Enter para salvar · Esc para cancelar</p>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => setAddingLink(true)}
-                      className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-dark-700 hover:border-primary-500/50 rounded-lg text-[11px] text-dark-500 hover:text-primary-400 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      {attachments.length === 0 ? "Adicionar link ou referência" : "Adicionar outro link"}
-                    </button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => setAddingLink(true)}
+                        className="flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-gray-300 hover:border-primary-400 rounded-lg text-[11px] text-gray-400 hover:text-primary-500 transition-colors"
+                      >
+                        <LinkIcon className="w-3.5 h-3.5" /> Adicionar link
+                      </button>
+                      <label className="flex items-center justify-center gap-1.5 py-2.5 border border-dashed border-gray-300 hover:border-primary-400 rounded-lg text-[11px] text-gray-400 hover:text-primary-500 transition-colors cursor-pointer">
+                        {uploadingFile
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <><Paperclip className="w-3.5 h-3.5" /> Anexar arquivo</>
+                        }
+                        <input type="file" className="hidden" disabled={uploadingFile}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); e.target.value = ""; }}
+                        />
+                      </label>
+                    </div>
                   )}
                 </div>
               )}
             </div>
 
             {/* Ações */}
-            <div className="px-5 py-4 border-t border-dark-800 space-y-2">
+            <div className="px-5 py-4 border-t border-gray-100 space-y-2">
               <Button className="w-full" onClick={handleSave} disabled={!form.title.trim() || saving}>
-                {saving
-                  ? <Loader2 className="w-4 h-4 animate-spin" />
-                  : editingTask ? "Salvar alterações" : "Criar tarefa"
-                }
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingTask ? "Salvar alterações" : "Criar tarefa"}
               </Button>
               {editingTask && (
-                <button
-                  onClick={handleDelete}
-                  className="w-full py-2 text-xs text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all"
+                <button onClick={handleDelete}
+                  className="w-full py-2 text-xs text-red-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                 >
                   Excluir tarefa
                 </button>
