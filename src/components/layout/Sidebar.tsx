@@ -22,6 +22,7 @@ import {
   LogOut,
   Sparkles,
   Brain,
+  FolderKanban,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -45,6 +46,7 @@ const navigation: NavItem[] = [
   { name: "Financeiro", href: "/financeiro", icon: DollarSign },
   { name: "Lembretes", href: "/lembretes", icon: Bell },
   { name: "Agenda", href: "/agenda", icon: Calendar },
+  { name: "Projetos", href: "/projetos", icon: FolderKanban },
   { name: "Documentos", href: "/documentos", icon: FileText },
   { name: "Listas", href: "/listas", icon: ShoppingCart },
   { name: "Desejos", href: "/desejos", icon: Heart },
