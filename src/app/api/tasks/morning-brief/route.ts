@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       const urgentLine: string[] = [];
       for (const t of urgentTasks || []) {
         // evita duplicar com as de vencimento
-        if ((dueTasks || []).some((d) => d.title === t.title)) continue;
+        if ((dueTasks || []).some((d: { title: string }) => d.title === t.title)) continue;
         const emoji = t.is_urgent && t.is_important ? "🔴" : t.is_important ? "🟠" : "🟡";
         urgentLine.push(`  ${emoji} *${t.title}*`);
       }
