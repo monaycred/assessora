@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
-import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
@@ -11,18 +10,31 @@ import {
   Plus, Loader2, ChevronLeft, Lightbulb, X,
   Calendar, DollarSign, MapPin, User, HelpCircle,
   Target, Wrench, LayoutDashboard, Grid2X2,
+  Link as LinkIcon, Trash2, ExternalLink,
 } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
-type KanbanStatus = "todo" | "in_progress" | "waiting" | "done";
-type ViewMode = "kanban" | "eisenhower";
+interface ProjectColumn {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+  order_index: number;
+}
+
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+}
 
 interface Task {
   id: string;
   title: string;
   description: string | null;
-  kanban_status: KanbanStatus;
+  kanban_status: string;
   kanban_order: number;
   is_urgent: boolean;
   is_important: boolean;
@@ -45,25 +57,27 @@ interface Project {
   color: string;
 }
 
+type ViewMode = "kanban" | "eisenhower";
+
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const KANBAN_COLS: { id: KanbanStatus; label: string; color: string }[] = [
-  { id: "todo",        label: "📥 A Fazer",     color: "text-dark-400"   },
-  { id: "in_progress", label: "🔄 Em Andamento", color: "text-blue-400"   },
-  { id: "waiting",     label: "⏳ Aguardando",   color: "text-yellow-400" },
-  { id: "done",        label: "✅ Concluído",    color: "text-green-400"  },
+const DEFAULT_COLUMNS: Omit<ProjectColumn, "id">[] = [
+  { slug: "todo",        name: "📥 A Fazer",      color: "#6b7280", order_index: 0 },
+  { slug: "in_progress", name: "🔄 Em Andamento",  color: "#3b82f6", order_index: 1 },
+  { slug: "waiting",     name: "⏳ Aguardando",    color: "#eab308", order_index: 2 },
+  { slug: "done",        name: "✅ Concluído",     color: "#22c55e", order_index: 3 },
 ];
 
 const EISENHOWER_QUADS = [
-  { urgent: true,  important: true,  label: "🔴 Urgente + Importante",      sub: "Fazer agora",    bg: "bg-red-950/60    border-red-900/50"    },
-  { urgent: false, important: true,  label: "🟠 Importante, não urgente",   sub: "Agendar",         bg: "bg-orange-950/60 border-orange-900/50" },
-  { urgent: true,  important: false, label: "🟡 Urgente, não importante",   sub: "Delegar",         bg: "bg-yellow-950/60 border-yellow-900/50" },
-  { urgent: false, important: false, label: "⚪ Baixa prioridade",           sub: "Arquivar",        bg: "bg-dark-900      border-dark-800"       },
+  { urgent: true,  important: true,  label: "🔴 Urgente + Importante",    sub: "Fazer agora", bg: "bg-red-950/40 border-red-900/40"        },
+  { urgent: false, important: true,  label: "🟠 Importante, não urgente", sub: "Agendar",     bg: "bg-orange-950/40 border-orange-900/40"  },
+  { urgent: true,  important: false, label: "🟡 Urgente, não importante", sub: "Delegar",     bg: "bg-yellow-950/40 border-yellow-900/40"  },
+  { urgent: false, important: false, label: "⚪ Baixa prioridade",        sub: "Arquivar",    bg: "bg-dark-800/60 border-dark-700/40"      },
 ];
 
 const EMPTY_FORM = {
   title: "", description: "",
-  kanban_status: "todo" as KanbanStatus,
+  kanban_status: "todo",
   is_urgent: false, is_important: false,
   what: "", why: "", where_field: "",
   when_field: "", who_field: "", how: "", how_much: "",
@@ -73,22 +87,32 @@ const EMPTY_FORM = {
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export default function ProjectBoardPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
+  const { id }   = useParams<{ id: string }>();
+  const router   = useRouter();
   const supabase = createClient();
 
-  const [project, setProject]     = useState<Project | null>(null);
-  const [tasks, setTasks]         = useState<Task[]>([]);
-  const [loading, setLoading]     = useState(true);
-  const [userId, setUserId]       = useState<string | null>(null);
-  const [viewMode, setViewMode]   = useState<ViewMode>("eisenhower");
-  const [kaizen, setKaizen]       = useState<{ id: string; suggestion: string }[]>([]);
+  const [project, setProject]   = useState<Project | null>(null);
+  const [tasks, setTasks]       = useState<Task[]>([]);
+  const [columns, setColumns]   = useState<ProjectColumn[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [userId, setUserId]     = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("eisenhower");
+  const [kaizen, setKaizen]     = useState<{ id: string; suggestion: string }[]>([]);
 
-  // Painel lateral
+  // Painel
   const [panelOpen, setPanelOpen]     = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [saving, setSaving]           = useState(false);
   const [form, setForm]               = useState({ ...EMPTY_FORM });
+
+  // Anexos
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [newLink, setNewLink]         = useState({ name: "", url: "" });
+  const [addingLink, setAddingLink]   = useState(false);
+
+  // Nova coluna
+  const [addingCol, setAddingCol]   = useState(false);
+  const [newColName, setNewColName] = useState("");
 
   // ── Load ──────────────────────────────────────────────────────────────────
 
@@ -101,73 +125,110 @@ export default function ProjectBoardPage() {
     if (!profile) return;
     setUserId(profile.id);
 
-    const [{ data: proj }, { data: tasksData }, { data: kaizenData }] = await Promise.all([
-      supabase.from("projects").select("*").eq("id", id).single(),
-      supabase.from("project_tasks").select("*").eq("project_id", id).order("kanban_order"),
-      supabase.from("kaizen_suggestions")
-        .select("id, suggestion").eq("project_id", id).eq("is_applied", false).limit(3),
-    ]);
+    const [{ data: proj }, { data: tasksData }, { data: kaizenData }, { data: colsData }] =
+      await Promise.all([
+        supabase.from("projects").select("*").eq("id", id).single(),
+        supabase.from("project_tasks").select("*").eq("project_id", id).order("kanban_order"),
+        supabase.from("kaizen_suggestions")
+          .select("id, suggestion").eq("project_id", id).eq("is_applied", false).limit(3),
+        supabase.from("project_columns")
+          .select("*").eq("project_id", id).order("order_index"),
+      ]);
 
     setProject(proj);
     setTasks(tasksData || []);
     setKaizen(kaizenData || []);
+
+    // Cria colunas padrão se o projeto ainda não tiver
+    if (!colsData || colsData.length === 0) {
+      const toInsert = DEFAULT_COLUMNS.map((c) => ({
+        ...c, project_id: id, user_id: profile.id,
+      }));
+      const { data: created } = await supabase
+        .from("project_columns").insert(toInsert).select();
+      setColumns(created || []);
+    } else {
+      setColumns(colsData);
+    }
+
     setLoading(false);
   }, [id, supabase]);
 
   useEffect(() => { load(); }, [load]);
 
+  // ── Anexos ────────────────────────────────────────────────────────────────
+
+  const loadAttachments = async (taskId: string) => {
+    const { data } = await supabase
+      .from("task_attachments")
+      .select("id, name, url, type")
+      .eq("task_id", taskId)
+      .order("created_at");
+    setAttachments(data || []);
+  };
+
   // ── Painel ────────────────────────────────────────────────────────────────
 
   const openNew = (opts?: Partial<typeof EMPTY_FORM>) => {
     setEditingTask(null);
-    setForm({ ...EMPTY_FORM, ...opts });
+    setForm({ ...EMPTY_FORM, kanban_status: columns[0]?.slug || "todo", ...opts });
+    setAttachments([]);
+    setAddingLink(false);
     setPanelOpen(true);
   };
 
   const openEdit = (task: Task) => {
     setEditingTask(task);
     setForm({
-      title:        task.title,
-      description:  task.description || "",
+      title:         task.title,
+      description:   task.description || "",
       kanban_status: task.kanban_status,
-      is_urgent:    task.is_urgent,
-      is_important: task.is_important,
-      what:         task.what || "",
-      why:          task.why || "",
-      where_field:  task.where_field || "",
-      when_field:   task.when_field || "",
-      who_field:    task.who_field || "",
-      how:          task.how || "",
-      how_much:     task.how_much?.toString() || "",
-      due_date:     task.due_date || "",
+      is_urgent:     task.is_urgent,
+      is_important:  task.is_important,
+      what:          task.what || "",
+      why:           task.why || "",
+      where_field:   task.where_field || "",
+      when_field:    task.when_field || "",
+      who_field:     task.who_field || "",
+      how:           task.how || "",
+      how_much:      task.how_much?.toString() || "",
+      due_date:      task.due_date || "",
     });
+    setAttachments([]);
+    setAddingLink(false);
+    loadAttachments(task.id);
     setPanelOpen(true);
   };
 
-  const closePanel = () => { setPanelOpen(false); setEditingTask(null); };
+  const closePanel = () => {
+    setPanelOpen(false);
+    setEditingTask(null);
+    setAttachments([]);
+    setAddingLink(false);
+  };
 
-  // ── Salvar ────────────────────────────────────────────────────────────────
+  // ── Salvar tarefa ─────────────────────────────────────────────────────────
 
   const handleSave = async () => {
     if (!form.title.trim() || !userId) return;
     setSaving(true);
 
     const payload = {
-      project_id:   id,
-      user_id:      userId,
-      title:        form.title.trim(),
-      description:  form.description.trim() || null,
+      project_id:    id,
+      user_id:       userId,
+      title:         form.title.trim(),
+      description:   form.description.trim() || null,
       kanban_status: form.kanban_status,
-      is_urgent:    form.is_urgent,
-      is_important: form.is_important,
-      what:         form.what.trim() || null,
-      why:          form.why.trim() || null,
-      where_field:  form.where_field.trim() || null,
-      when_field:   form.when_field || null,
-      who_field:    form.who_field.trim() || null,
-      how:          form.how.trim() || null,
-      how_much:     form.how_much ? parseFloat(form.how_much) : null,
-      due_date:     form.due_date || null,
+      is_urgent:     form.is_urgent,
+      is_important:  form.is_important,
+      what:          form.what.trim() || null,
+      why:           form.why.trim() || null,
+      where_field:   form.where_field.trim() || null,
+      when_field:    form.when_field || null,
+      who_field:     form.who_field.trim() || null,
+      how:           form.how.trim() || null,
+      how_much:      form.how_much ? parseFloat(form.how_much) : null,
+      due_date:      form.due_date || null,
     };
 
     if (editingTask) {
@@ -189,8 +250,8 @@ export default function ProjectBoardPage() {
     load();
   };
 
-  const handleMoveStatus = async (taskId: string, status: KanbanStatus) => {
-    await supabase.from("project_tasks").update({ kanban_status: status }).eq("id", taskId);
+  const handleMoveStatus = async (taskId: string, slug: string) => {
+    await supabase.from("project_tasks").update({ kanban_status: slug }).eq("id", taskId);
     load();
   };
 
@@ -199,16 +260,58 @@ export default function ProjectBoardPage() {
     setKaizen((k) => k.filter((s) => s.id !== kId));
   };
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── Anexos ────────────────────────────────────────────────────────────────
 
-  const eisenhowerOf = (t: Task) => {
-    if (t.is_urgent && t.is_important)   return { emoji: "🔴", color: "bg-red-500/15 border-red-500/30" };
-    if (!t.is_urgent && t.is_important)  return { emoji: "🟠", color: "bg-orange-500/10 border-orange-500/20" };
-    if (t.is_urgent && !t.is_important)  return { emoji: "🟡", color: "bg-yellow-500/10 border-yellow-500/20" };
-    return { emoji: "⚪", color: "bg-dark-900 border-dark-800" };
+  const handleAddLink = async () => {
+    if (!newLink.url.trim() || !editingTask || !userId) return;
+    const { data } = await supabase.from("task_attachments").insert({
+      task_id: editingTask.id,
+      user_id: userId,
+      type:    "link",
+      name:    newLink.name.trim() || newLink.url,
+      url:     newLink.url.trim(),
+    }).select().single();
+    if (data) setAttachments((a) => [...a, data]);
+    setNewLink({ name: "", url: "" });
+    setAddingLink(false);
   };
 
-  const show5W2H = form.is_urgent && form.is_important || (!form.is_urgent && form.is_important);
+  const handleDeleteAttachment = async (attId: string) => {
+    await supabase.from("task_attachments").delete().eq("id", attId);
+    setAttachments((a) => a.filter((x) => x.id !== attId));
+  };
+
+  // ── Colunas customizadas ──────────────────────────────────────────────────
+
+  const handleAddColumn = async () => {
+    if (!newColName.trim() || !userId) return;
+    const raw  = newColName.trim();
+    const slug = raw.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") || `col_${Date.now()}`;
+    const { data } = await supabase.from("project_columns").insert({
+      project_id:  id,
+      user_id:     userId,
+      name:        raw,
+      slug,
+      color:       "#6366f1",
+      order_index: columns.length,
+    }).select().single();
+    if (data) setColumns((c) => [...c, data]);
+    setNewColName("");
+    setAddingCol(false);
+  };
+
+  const handleDeleteColumn = async (colId: string, colSlug: string) => {
+    const firstCol = columns.find((c) => c.id !== colId);
+    if (firstCol) {
+      await supabase.from("project_tasks")
+        .update({ kanban_status: firstCol.slug })
+        .eq("project_id", id)
+        .eq("kanban_status", colSlug);
+    }
+    await supabase.from("project_columns").delete().eq("id", colId);
+    setColumns((c) => c.filter((x) => x.id !== colId));
+    load();
+  };
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -224,8 +327,9 @@ export default function ProjectBoardPage() {
     </div>
   );
 
-  const tasksByStatus = (status: KanbanStatus) => tasks.filter((t) => t.kanban_status === status);
-  const tasksByQuad   = (u: boolean, i: boolean) => tasks.filter((t) => t.is_urgent === u && t.is_important === i);
+  const tasksByStatus = (slug: string) => tasks.filter((t) => t.kanban_status === slug);
+  const tasksByQuad   = (u: boolean, i: boolean) =>
+    tasks.filter((t) => t.is_urgent === u && t.is_important === i);
 
   return (
     <div className="min-h-screen bg-dark-950">
@@ -242,14 +346,11 @@ export default function ProjectBoardPage() {
           </button>
 
           <div className="flex items-center gap-3">
-            {/* Toggle view */}
             <div className="flex bg-dark-900 border border-dark-800 rounded-lg p-1 gap-1">
               <button
                 onClick={() => setViewMode("eisenhower")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  viewMode === "eisenhower"
-                    ? "bg-dark-700 text-white"
-                    : "text-dark-500 hover:text-dark-300"
+                  viewMode === "eisenhower" ? "bg-dark-700 text-white" : "text-dark-500 hover:text-dark-300"
                 }`}
               >
                 <Grid2X2 className="w-3.5 h-3.5" /> Eisenhower
@@ -257,15 +358,12 @@ export default function ProjectBoardPage() {
               <button
                 onClick={() => setViewMode("kanban")}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
-                  viewMode === "kanban"
-                    ? "bg-dark-700 text-white"
-                    : "text-dark-500 hover:text-dark-300"
+                  viewMode === "kanban" ? "bg-dark-700 text-white" : "text-dark-500 hover:text-dark-300"
                 }`}
               >
                 <LayoutDashboard className="w-3.5 h-3.5" /> Kanban
               </button>
             </div>
-
             <Button size="sm" onClick={() => openNew()}>
               <Plus className="w-3.5 h-3.5 mr-1" /> Tarefa
             </Button>
@@ -306,14 +404,13 @@ export default function ProjectBoardPage() {
                       <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
-
                   <div className="space-y-2">
                     {qTasks.map((t) => (
-                      <TaskCard key={t.id} task={t} onEdit={openEdit} onMove={handleMoveStatus} />
+                      <TaskCard key={t.id} task={t} columns={columns} onEdit={openEdit} onMove={handleMoveStatus} />
                     ))}
                     {qTasks.length === 0 && (
                       <div
-                        className="border border-dashed border-dark-700/50 rounded-lg p-3 text-center cursor-pointer hover:border-dark-600 transition-colors"
+                        className="border border-dashed border-dark-700/40 rounded-lg p-3 text-center cursor-pointer hover:border-dark-600 transition-colors"
                         onClick={() => openNew({ is_urgent: q.urgent, is_important: q.important })}
                       >
                         <p className="text-[10px] text-dark-700">+ adicionar tarefa</p>
@@ -328,34 +425,48 @@ export default function ProjectBoardPage() {
 
         {/* ── KANBAN VIEW ── */}
         {viewMode === "kanban" && (
-          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            {KANBAN_COLS.map((col) => {
-              const colTasks = tasksByStatus(col.id);
+          <div className="flex gap-3 overflow-x-auto pb-4">
+            {columns.map((col) => {
+              const colTasks = tasksByStatus(col.slug);
               return (
-                <div key={col.id}>
-                  <div className="flex items-center justify-between mb-3">
+                <div key={col.id} className="flex-shrink-0 w-64">
+                  <div className="flex items-center justify-between mb-3 group">
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
+                      <div
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: col.color }}
+                      />
+                      <span className="text-xs font-semibold text-dark-300">{col.name}</span>
                       <span className="text-[10px] bg-dark-800 text-dark-500 rounded-full px-1.5 py-0.5">
                         {colTasks.length}
                       </span>
                     </div>
-                    <button
-                      onClick={() => openNew({ kanban_status: col.id })}
-                      className="w-5 h-5 flex items-center justify-center rounded text-dark-600 hover:text-primary-400 hover:bg-primary-500/10 transition-all"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openNew({ kanban_status: col.slug })}
+                        className="w-5 h-5 flex items-center justify-center rounded text-dark-600 hover:text-primary-400 hover:bg-primary-500/10 transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                      {columns.length > 1 && (
+                        <button
+                          onClick={() => handleDeleteColumn(col.id, col.slug)}
+                          className="w-5 h-5 flex items-center justify-center rounded text-dark-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-2 min-h-[180px]">
                     {colTasks.map((t) => (
-                      <TaskCard key={t.id} task={t} onEdit={openEdit} onMove={handleMoveStatus} compact />
+                      <TaskCard key={t.id} task={t} columns={columns} onEdit={openEdit} onMove={handleMoveStatus} compact />
                     ))}
                     {colTasks.length === 0 && (
                       <div
                         className="border-2 border-dashed border-dark-800 rounded-xl p-4 text-center cursor-pointer hover:border-dark-700 transition-colors"
-                        onClick={() => openNew({ kanban_status: col.id })}
+                        onClick={() => openNew({ kanban_status: col.slug })}
                       >
                         <p className="text-[10px] text-dark-700">+ adicionar</p>
                       </div>
@@ -364,6 +475,46 @@ export default function ProjectBoardPage() {
                 </div>
               );
             })}
+
+            {/* Adicionar nova etapa */}
+            <div className="flex-shrink-0 w-52">
+              {addingCol ? (
+                <div className="bg-dark-900 border border-dark-700 rounded-xl p-3 space-y-2">
+                  <input
+                    autoFocus
+                    value={newColName}
+                    onChange={(e) => setNewColName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleAddColumn();
+                      if (e.key === "Escape") setAddingCol(false);
+                    }}
+                    placeholder="Nome da etapa..."
+                    className="w-full bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                  />
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={handleAddColumn}
+                      className="flex-1 py-1.5 bg-primary-500/20 text-primary-300 rounded-lg text-[10px] font-bold hover:bg-primary-500/30 transition-colors"
+                    >
+                      Criar
+                    </button>
+                    <button
+                      onClick={() => setAddingCol(false)}
+                      className="flex-1 py-1.5 bg-dark-800 text-dark-500 rounded-lg text-[10px] hover:bg-dark-700 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingCol(true)}
+                  className="w-full py-3 border-2 border-dashed border-dark-800 rounded-xl text-[10px] text-dark-600 hover:border-dark-700 hover:text-dark-500 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3 h-3" /> Nova etapa
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -373,7 +524,7 @@ export default function ProjectBoardPage() {
         <>
           <div className="fixed inset-0 bg-black/40 z-40" onClick={closePanel} />
           <div className="fixed right-0 top-0 h-full w-80 bg-dark-950 border-l border-dark-800 z-50 flex flex-col shadow-2xl">
-            {/* Header painel */}
+            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-dark-800">
               <p className="text-sm font-bold text-white">
                 {editingTask ? "Editar Tarefa" : "Nova Tarefa"}
@@ -383,7 +534,6 @@ export default function ProjectBoardPage() {
               </button>
             </div>
 
-            {/* Conteúdo do painel */}
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
               {/* Título */}
@@ -394,21 +544,33 @@ export default function ProjectBoardPage() {
                 placeholder="O que precisa ser feito?"
               />
 
-              {/* Status Kanban */}
+              {/* Descrição */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-2">Status</label>
+                <label className="block text-xs font-medium text-dark-400 mb-1.5">Descrição</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder="Detalhe a tarefa..."
+                  rows={2}
+                  className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50 resize-none"
+                />
+              </div>
+
+              {/* Etapa Kanban */}
+              <div>
+                <label className="block text-xs font-medium text-dark-400 mb-2">Etapa</label>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {KANBAN_COLS.map((col) => (
+                  {columns.map((col) => (
                     <button
                       key={col.id}
-                      onClick={() => setForm((f) => ({ ...f, kanban_status: col.id }))}
+                      onClick={() => setForm((f) => ({ ...f, kanban_status: col.slug }))}
                       className={`py-1.5 px-2 rounded-lg border text-[10px] font-semibold transition-all ${
-                        form.kanban_status === col.id
+                        form.kanban_status === col.slug
                           ? "border-primary-500/60 bg-primary-500/10 text-primary-300"
                           : "border-dark-700 text-dark-500 hover:border-dark-600"
                       }`}
                     >
-                      {col.label}
+                      {col.name}
                     </button>
                   ))}
                 </div>
@@ -416,7 +578,7 @@ export default function ProjectBoardPage() {
 
               {/* Prioridade Eisenhower */}
               <div>
-                <label className="block text-xs font-medium text-dark-400 mb-2">Prioridade — Eisenhower</label>
+                <label className="block text-xs font-medium text-dark-400 mb-2">Prioridade</label>
                 <div className="grid grid-cols-2 gap-1.5">
                   {EISENHOWER_QUADS.map((q) => (
                     <button
@@ -446,36 +608,121 @@ export default function ProjectBoardPage() {
                 />
               </div>
 
-              {/* 5W2H — só para urgente+importante ou importante */}
-              {show5W2H && (
+              {/* 5W2H — disponível para TODAS as tarefas */}
+              <div className="border-t border-dark-800 pt-4">
+                <p className="text-xs font-bold text-primary-400 mb-3 flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" /> 5W2H
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { field: "what",        label: "O que? (What)",      icon: <Target className="w-3 h-3" />,     type: "text",   ph: "O que precisa ser feito?" },
+                    { field: "why",         label: "Por quê? (Why)",     icon: <HelpCircle className="w-3 h-3" />, type: "text",   ph: "Qual o motivo?" },
+                    { field: "where_field", label: "Onde? (Where)",      icon: <MapPin className="w-3 h-3" />,     type: "text",   ph: "Onde acontece?" },
+                    { field: "when_field",  label: "Quando? (When)",     icon: <Calendar className="w-3 h-3" />,   type: "date",   ph: "" },
+                    { field: "who_field",   label: "Quem? (Who)",        icon: <User className="w-3 h-3" />,       type: "text",   ph: "Responsável" },
+                    { field: "how",         label: "Como? (How)",        icon: <Wrench className="w-3 h-3" />,     type: "text",   ph: "Como será feito?" },
+                    { field: "how_much",    label: "Quanto? (How Much)", icon: <DollarSign className="w-3 h-3" />, type: "number", ph: "0,00" },
+                  ].map(({ field, label, icon, type, ph }) => (
+                    <div key={field}>
+                      <label className="flex items-center gap-1.5 text-[10px] font-semibold text-dark-500 uppercase tracking-wide mb-1">
+                        {icon} {label}
+                      </label>
+                      <input
+                        type={type}
+                        value={(form as Record<string, string>)[field]}
+                        onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
+                        placeholder={ph}
+                        className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Links e Anexos — só ao editar tarefa existente */}
+              {editingTask && (
                 <div className="border-t border-dark-800 pt-4">
-                  <p className="text-xs font-bold text-primary-400 mb-3 flex items-center gap-1.5">
-                    <Target className="w-3.5 h-3.5" /> 5W2H
-                  </p>
-                  <div className="space-y-3">
-                    {[
-                      { field: "what",        label: "O que? (What)",     icon: <Target className="w-3 h-3" />,      type: "text",   ph: "O que precisa ser feito?" },
-                      { field: "why",         label: "Por quê? (Why)",    icon: <HelpCircle className="w-3 h-3" />,  type: "text",   ph: "Qual o motivo?" },
-                      { field: "where_field", label: "Onde? (Where)",     icon: <MapPin className="w-3 h-3" />,      type: "text",   ph: "Onde acontece?" },
-                      { field: "when_field",  label: "Quando? (When)",    icon: <Calendar className="w-3 h-3" />,    type: "date",   ph: "" },
-                      { field: "who_field",   label: "Quem? (Who)",       icon: <User className="w-3 h-3" />,        type: "text",   ph: "Responsável" },
-                      { field: "how",         label: "Como? (How)",       icon: <Wrench className="w-3 h-3" />,      type: "text",   ph: "Como será feito?" },
-                      { field: "how_much",    label: "Quanto? (How Much)",icon: <DollarSign className="w-3 h-3" />,  type: "number", ph: "0,00" },
-                    ].map(({ field, label, icon, type, ph }) => (
-                      <div key={field}>
-                        <label className="flex items-center gap-1.5 text-[10px] font-semibold text-dark-500 uppercase tracking-wide mb-1">
-                          {icon} {label}
-                        </label>
-                        <input
-                          type={type}
-                          value={(form as any)[field]}
-                          onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
-                          placeholder={ph}
-                          className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
-                        />
-                      </div>
-                    ))}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold text-dark-300 flex items-center gap-1.5">
+                      <LinkIcon className="w-3.5 h-3.5" /> Links e Anexos
+                    </p>
+                    {!addingLink && (
+                      <button
+                        onClick={() => setAddingLink(true)}
+                        className="text-[10px] text-primary-400 hover:text-primary-300 flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Adicionar
+                      </button>
+                    )}
                   </div>
+
+                  {/* Anexos existentes */}
+                  {attachments.length > 0 && (
+                    <div className="space-y-1.5 mb-3">
+                      {attachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-2 bg-dark-900 rounded-lg px-2.5 py-2 group"
+                        >
+                          <LinkIcon className="w-3 h-3 text-dark-500 flex-shrink-0" />
+                          <a
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex-1 text-[11px] text-dark-300 hover:text-primary-300 truncate"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {att.name}
+                          </a>
+                          <ExternalLink className="w-3 h-3 text-dark-600 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <button
+                            onClick={() => handleDeleteAttachment(att.id)}
+                            className="w-4 h-4 flex items-center justify-center text-dark-600 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Form novo link */}
+                  {addingLink && (
+                    <div className="bg-dark-900 border border-dark-700 rounded-lg p-3 space-y-2">
+                      <input
+                        autoFocus
+                        value={newLink.url}
+                        onChange={(e) => setNewLink((l) => ({ ...l, url: e.target.value }))}
+                        placeholder="https://..."
+                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                      />
+                      <input
+                        value={newLink.name}
+                        onChange={(e) => setNewLink((l) => ({ ...l, name: e.target.value }))}
+                        placeholder="Nome do link (opcional)"
+                        className="w-full bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
+                      />
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={handleAddLink}
+                          disabled={!newLink.url.trim()}
+                          className="flex-1 py-1.5 bg-primary-500/20 text-primary-300 rounded-lg text-[10px] font-bold hover:bg-primary-500/30 disabled:opacity-40 transition-colors"
+                        >
+                          Salvar
+                        </button>
+                        <button
+                          onClick={() => { setAddingLink(false); setNewLink({ name: "", url: "" }); }}
+                          className="flex-1 py-1.5 bg-dark-800 text-dark-500 rounded-lg text-[10px] hover:bg-dark-700 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {attachments.length === 0 && !addingLink && (
+                    <p className="text-[10px] text-dark-700">Nenhum link adicionado ainda</p>
+                  )}
                 </div>
               )}
             </div>
@@ -483,7 +730,10 @@ export default function ProjectBoardPage() {
             {/* Ações */}
             <div className="px-5 py-4 border-t border-dark-800 space-y-2">
               <Button className="w-full" onClick={handleSave} disabled={!form.title.trim() || saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingTask ? "Salvar alterações" : "Criar tarefa"}
+                {saving
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : editingTask ? "Salvar alterações" : "Criar tarefa"
+                }
               </Button>
               {editingTask && (
                 <button
@@ -504,27 +754,33 @@ export default function ProjectBoardPage() {
 // ─── Card de tarefa ───────────────────────────────────────────────────────────
 
 function TaskCard({
-  task, onEdit, onMove, compact = false,
+  task, columns, onEdit, onMove, compact = false,
 }: {
   task: Task;
+  columns: ProjectColumn[];
   onEdit: (t: Task) => void;
-  onMove: (id: string, status: KanbanStatus) => void;
+  onMove: (id: string, slug: string) => void;
   compact?: boolean;
 }) {
-  const e = task.is_urgent && task.is_important ? "🔴"
-    : !task.is_urgent && task.is_important ? "🟠"
-    : task.is_urgent && !task.is_important ? "🟡"
+  const emoji = task.is_urgent && task.is_important  ? "🔴"
+    : !task.is_urgent && task.is_important            ? "🟠"
+    : task.is_urgent  && !task.is_important           ? "🟡"
     : "⚪";
+
+  const borderColor = task.is_urgent && task.is_important  ? "border-red-500/25"
+    : !task.is_urgent && task.is_important                  ? "border-orange-500/20"
+    : task.is_urgent  && !task.is_important                 ? "border-yellow-500/20"
+    : "border-dark-600/50";
 
   const has5W2H = task.what || task.why || task.who_field || task.how_much;
 
   return (
     <div
-      className="bg-dark-900/80 border border-dark-800 rounded-xl p-3 cursor-pointer hover:border-dark-600 transition-all group"
+      className={`bg-dark-800 border ${borderColor} rounded-xl p-3 cursor-pointer hover:border-dark-500 hover:bg-dark-750 transition-all group`}
       onClick={() => onEdit(task)}
     >
       <div className="flex items-start gap-2 mb-2">
-        <span className="text-xs mt-0.5">{e}</span>
+        <span className="text-xs mt-0.5 flex-shrink-0">{emoji}</span>
         <p className="text-xs font-semibold text-white flex-1 leading-snug">{task.title}</p>
       </div>
 
@@ -533,14 +789,14 @@ function TaskCard({
           <span className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
             new Date(task.due_date) <= new Date()
               ? "bg-red-500/15 text-red-400"
-              : "bg-dark-800 text-dark-400"
+              : "bg-dark-700 text-dark-400"
           }`}>
             <Calendar className="w-2.5 h-2.5" />
             {new Date(task.due_date).toLocaleDateString("pt-BR")}
           </span>
         )}
         {task.who_field && (
-          <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-dark-800 text-dark-400 font-medium">
+          <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded-full bg-dark-700 text-dark-400 font-medium">
             <User className="w-2.5 h-2.5" /> {task.who_field}
           </span>
         )}
@@ -556,29 +812,25 @@ function TaskCard({
         )}
       </div>
 
-      {/* Mover rápido entre status */}
-      {!compact && (
+      {/* Mover entre colunas (hover) */}
+      {!compact && columns.length > 1 && (
         <div
-          className="flex gap-1 mt-2 pt-2 border-t border-dark-800 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="flex gap-1 mt-2 pt-2 border-t border-dark-700 opacity-0 group-hover:opacity-100 transition-opacity"
           onClick={(e) => e.stopPropagation()}
         >
-          {(["todo","in_progress","waiting","done"] as KanbanStatus[])
-            .filter((s) => s !== task.kanban_status)
-            .map((s) => {
-              const labels: Record<KanbanStatus, string> = {
-                todo: "📥", in_progress: "🔄", waiting: "⏳", done: "✅"
-              };
-              return (
-                <button
-                  key={s}
-                  onClick={() => onMove(task.id, s)}
-                  className="flex-1 text-[9px] py-1 bg-dark-800 hover:bg-dark-700 rounded text-dark-400 hover:text-white transition-all"
-                  title={s}
-                >
-                  {labels[s]}
-                </button>
-              );
-            })}
+          {columns
+            .filter((c) => c.slug !== task.kanban_status)
+            .slice(0, 3)
+            .map((c) => (
+              <button
+                key={c.slug}
+                onClick={() => onMove(task.id, c.slug)}
+                className="flex-1 text-[9px] py-1 bg-dark-700 hover:bg-dark-600 rounded text-dark-400 hover:text-white transition-all truncate px-1"
+                title={c.name}
+              >
+                {c.name.split(" ")[0]}
+              </button>
+            ))}
         </div>
       )}
     </div>
