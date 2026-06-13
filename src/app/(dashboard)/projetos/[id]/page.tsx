@@ -682,27 +682,43 @@ export default function ProjectBoardPage() {
 
                   {/* Lista de anexos */}
                   {attachments.length > 0 && (
-                    <div className="space-y-1.5 mb-3">
-                      {attachments.map((att) => (
-                        <div key={att.id} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-2 group">
-                          {att.type === "file"
-                            ? <Paperclip className="w-3 h-3 text-gray-400 flex-shrink-0" />
-                            : <LinkIcon  className="w-3 h-3 text-primary-400 flex-shrink-0" />
-                          }
-                          <a href={att.url} target="_blank" rel="noopener noreferrer"
-                            className="flex-1 text-[11px] text-gray-600 hover:text-primary-600 truncate"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {att.name}
-                          </a>
-                          <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <button onClick={() => handleDeleteAttachment(att.id)}
-                            className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="space-y-2 mb-3">
+                      {attachments.map((att) => {
+                        const isImage = att.type === "file" && /\.(png|jpe?g|gif|webp|svg)$/i.test(att.name);
+                        return (
+                          <div key={att.id} className="group border border-gray-200 rounded-xl overflow-hidden bg-gray-50">
+                            {/* Preview para imagens */}
+                            {isImage && (
+                              <a href={att.url} target="_blank" rel="noopener noreferrer" className="block">
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="w-full h-36 object-cover"
+                                />
+                              </a>
+                            )}
+                            {/* Rodapé do anexo */}
+                            <div className="flex items-center gap-2 px-2.5 py-2">
+                              {att.type === "file"
+                                ? <Paperclip className="w-3 h-3 text-gray-400 flex-shrink-0" />
+                                : <LinkIcon  className="w-3 h-3 text-primary-400 flex-shrink-0" />
+                              }
+                              <a href={att.url} target="_blank" rel="noopener noreferrer"
+                                className="flex-1 text-[11px] text-gray-600 hover:text-primary-600 truncate"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {att.name}
+                              </a>
+                              <ExternalLink className="w-3 h-3 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                              <button onClick={() => handleDeleteAttachment(att.id)}
+                                className="w-4 h-4 flex items-center justify-center text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
