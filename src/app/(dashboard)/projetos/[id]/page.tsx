@@ -235,14 +235,22 @@ export default function ProjectBoardPage() {
 
     if (editingTask) {
       await supabase.from("project_tasks").update(payload).eq("id", editingTask.id);
+      setSaving(false);
+      closePanel();
+      load();
     } else {
       const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.kanban_order)) : 0;
-      await supabase.from("project_tasks").insert({ ...payload, kanban_order: maxOrder + 1 });
+      const { data: newTask } = await supabase
+        .from("project_tasks")
+        .insert({ ...payload, kanban_order: maxOrder + 1 })
+        .select()
+        .single();
+      setSaving(false);
+      load();
+      // Abre o painel de edição da nova tarefa para permitir anexar arquivos imediatamente
+      if (newTask) openEdit(newTask);
+      else closePanel();
     }
-
-    setSaving(false);
-    closePanel();
-    load();
   };
 
   const handleDelete = async () => {
@@ -758,7 +766,7 @@ export default function ProjectBoardPage() {
             {/* Ações */}
             <div className="px-5 py-4 border-t border-gray-100 space-y-2">
               <Button className="w-full" onClick={handleSave} disabled={!form.title.trim() || saving}>
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingTask ? "Salvar alterações" : "Criar tarefa"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : editingTask ? "Salvar alterações" : "Criar tarefa →"}
               </Button>
               {editingTask && (
                 <button onClick={handleDelete}

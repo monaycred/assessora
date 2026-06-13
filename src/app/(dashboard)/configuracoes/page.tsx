@@ -6,14 +6,16 @@ import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
-import { Settings, User, Bell, Shield, Sparkles } from "lucide-react";
+import { Settings, User, Bell, Shield, Sparkles, Clock } from "lucide-react";
 
 export default function ConfiguracoesPage() {
   const supabase = createClient();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saving, setSaving]           = useState(false);
+  const [saved, setSaved]             = useState(false);
+  const [savingBriefing, setSavingBriefing] = useState(false);
+  const [savedBriefing, setSavedBriefing]   = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -47,6 +49,23 @@ export default function ConfiguracoesPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const handleSaveBriefing = async () => {
+    if (!profile) return;
+    setSavingBriefing(true);
+
+    await supabase
+      .from("user_profiles")
+      .update({
+        briefing_enabled: profile.briefing_enabled ?? false,
+        briefing_time:    profile.briefing_time    ?? "08:00",
+      })
+      .eq("id", profile.id);
+
+    setSavingBriefing(false);
+    setSavedBriefing(true);
+    setTimeout(() => setSavedBriefing(false), 3000);
   };
 
   return (
@@ -136,6 +155,79 @@ export default function ConfiguracoesPage() {
               </ul>
             </div>
           </div>
+        </Card>
+
+        {/* Briefing Diário */}
+        <Card>
+          <div className="flex items-center gap-2 mb-5">
+            <Clock className="w-4 h-4 text-primary-500" />
+            <h3 className="text-sm font-semibold text-dark-100">Briefing Diário</h3>
+          </div>
+          <p className="text-xs text-dark-400 mb-4">
+            A Iasmin manda no seu WhatsApp as tarefas urgentes e vencimentos do dia no horário que você escolher.
+          </p>
+
+          {loading ? (
+            <div className="py-4 flex justify-center">
+              <div className="w-5 h-5 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : profile ? (
+            <div className="space-y-4">
+              {/* Toggle ativo */}
+              <div className="flex items-center justify-between py-3 px-4 bg-dark-900 rounded-xl border border-dark-700">
+                <div>
+                  <p className="text-sm font-medium text-dark-100">Ativar briefing</p>
+                  <p className="text-xs text-dark-400 mt-0.5">Receber resumo diário via WhatsApp</p>
+                </div>
+                <button
+                  onClick={() => setProfile((p: any) => ({ ...p, briefing_enabled: !p.briefing_enabled }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
+                    profile.briefing_enabled ? "bg-primary-500" : "bg-dark-700"
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${
+                      profile.briefing_enabled ? "translate-x-5" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Horário */}
+              {profile.briefing_enabled && (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-dark-200 block">
+                    Horário de envio
+                  </label>
+                  <p className="text-xs text-dark-400">
+                    Horário de Brasília (UTC-3). O servidor funciona em UTC, então será ajustado automaticamente.
+                  </p>
+                  <input
+                    type="time"
+                    value={profile.briefing_time?.slice(0, 5) || "08:00"}
+                    onChange={(e) => {
+                      // Converte horário de Brasília → UTC (+3h)
+                      const [h, m] = e.target.value.split(":").map(Number);
+                      const utcH = ((h + 3) % 24).toString().padStart(2, "0");
+                      setProfile((p: any) => ({ ...p, briefing_time: `${utcH}:${m.toString().padStart(2, "0")}` }));
+                    }}
+                    className="bg-dark-900 border border-dark-700 rounded-lg px-4 py-2.5 text-sm text-dark-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/50"
+                  />
+                  <p className="text-xs text-dark-500">
+                    Horário salvo (UTC): {profile.briefing_time?.slice(0, 5) || "08:00"}
+                  </p>
+                </div>
+              )}
+
+              <Button
+                onClick={handleSaveBriefing}
+                loading={savingBriefing}
+                variant={savedBriefing ? "secondary" : "primary"}
+              >
+                {savedBriefing ? "✓ Salvo!" : "Salvar briefing"}
+              </Button>
+            </div>
+          ) : null}
         </Card>
 
         {/* Segurança */}
