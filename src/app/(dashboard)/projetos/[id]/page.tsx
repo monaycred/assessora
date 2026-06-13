@@ -629,7 +629,7 @@ export default function ProjectBoardPage() {
                       </label>
                       <input
                         type={type}
-                        value={(form as Record<string, string>)[field]}
+                        value={(form as unknown as Record<string, string>)[field]}
                         onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
                         placeholder={ph}
                         className="w-full bg-dark-900 border border-dark-700/50 rounded-lg px-3 py-2 text-xs text-white placeholder-dark-600 focus:outline-none focus:border-primary-500/50"
