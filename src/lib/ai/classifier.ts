@@ -1,7 +1,10 @@
 import { anthropic, AI_MODEL, AI_MODEL_VISION } from "@/lib/anthropic/client";
+import { openai, OPENAI_MODEL_DEFAULT } from "@/lib/openai/client";
+import { createAdminClient } from "@/lib/supabase/server";
 import type { AIClassification } from "@/types";
 
-const SYSTEM_PROMPT = `Você é a Iasmin, uma assistente pessoal operacional via WhatsApp.
+// ── Fallback prompt (usado se o banco ainda não tem config) ────────────────
+const DEFAULT_SYSTEM_PROMPT = `Você é a Iasmin, uma assistente pessoal operacional via WhatsApp.
 
 REGRAS IMPORTANTES:
 - Você NÃO é um chatbot geral. Não responda perguntas aleatórias.
@@ -49,37 +52,90 @@ Responda SEMPRE em JSON válido com este formato exato:
   "response_message": "Mensagem curta de confirmação em português para enviar ao usuário no WhatsApp"
 }
 
-A response_message deve ser curta, amigável, e confirmar o que foi feito. Exemplos:
-- "Pronto! Registrei R$ 230,00 no mercado. ✅"
-- "Lembrete criado! Vou te avisar daqui 20 dias para cortar o cabelo. ✂️"
-- "Consulta médica agendada para o dia 25 às 14h. 🏥"
-- "Air Fryer adicionada à sua lista de desejos. 🛍️"`;
+A response_message deve ser curta, amigável, e confirmar o que foi feito.`;
 
+// ── Cache simples (evita ler o banco a cada mensagem) ──────────────────────
+let configCache: { provider: string; model: string; system_prompt: string } | null = null;
+let cacheAt = 0;
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+async function getActiveConfig() {
+  const now = Date.now();
+  if (configCache && now - cacheAt < CACHE_TTL_MS) return configCache;
+
+  try {
+    const supabase = createAdminClient();
+    const { data } = await supabase
+      .from("ai_config")
+      .select("provider, model, system_prompt")
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (data) {
+      configCache = data;
+      cacheAt = now;
+      return data;
+    }
+  } catch {
+    // se falhar, usa fallback
+  }
+
+  return { provider: "anthropic", model: AI_MODEL, system_prompt: DEFAULT_SYSTEM_PROMPT };
+}
+
+export function clearConfigCache() {
+  configCache = null;
+  cacheAt = 0;
+}
+
+// ── Classifica via Anthropic ───────────────────────────────────────────────
+async function classifyWithAnthropic(userContent: string, systemPrompt: string, model: string): Promise<string> {
+  const response = await anthropic.messages.create({
+    model: model || AI_MODEL,
+    max_tokens: 600,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userContent }],
+  });
+  return response.content[0].type === "text" ? response.content[0].text : "{}";
+}
+
+// ── Classifica via OpenAI ──────────────────────────────────────────────────
+async function classifyWithOpenAI(userContent: string, systemPrompt: string, model: string): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: model || OPENAI_MODEL_DEFAULT,
+    max_tokens: 600,
+    response_format: { type: "json_object" },
+    messages: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userContent },
+    ],
+  });
+  return response.choices[0]?.message?.content || "{}";
+}
+
+// ── Função principal ───────────────────────────────────────────────────────
 export async function classifyMessage(
   message: string,
   contextInfo?: string
 ): Promise<AIClassification> {
-  const userContent = contextInfo
-    ? `Contexto: ${contextInfo}\n\nMensagem: ${message}`
-    : message;
+  const config = await getActiveConfig();
+  const userContent = contextInfo ? `Contexto: ${contextInfo}\n\nMensagem: ${message}` : message;
 
-  const response = await anthropic.messages.create({
-    model: AI_MODEL,
-    max_tokens: 600,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: userContent,
-      },
-    ],
-  });
+  let raw: string;
+  try {
+    if (config.provider === "openai") {
+      raw = await classifyWithOpenAI(userContent, config.system_prompt, config.model);
+    } else {
+      raw = await classifyWithAnthropic(userContent, config.system_prompt, config.model);
+    }
+  } catch (err) {
+    console.error("[Classifier] Erro ao chamar IA:", err);
+    throw err;
+  }
 
-  const content =
-    response.content[0].type === "text" ? response.content[0].text : "{}";
-
-  // Remove markdown code blocks se houver
-  const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
+  const cleaned = raw.replace(/```json\n?|\n?```/g, "").trim();
 
   try {
     return JSON.parse(cleaned) as AIClassification;
@@ -94,15 +150,15 @@ export async function classifyMessage(
   }
 }
 
-// Classifica mensagem com imagem (visão)
+// ── Classifica com imagem (sempre Anthropic Vision) ───────────────────────
 export async function classifyMessageWithImage(
   message: string,
   imageUrl: string
 ): Promise<AIClassification> {
-  // Faz download da imagem para base64
+  const config = await getActiveConfig();
+
   let imageData: string;
-  let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" =
-    "image/jpeg";
+  let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
 
   try {
     const imgResponse = await fetch(imageUrl);
@@ -112,39 +168,25 @@ export async function classifyMessageWithImage(
     if (contentType.includes("png")) mediaType = "image/png";
     else if (contentType.includes("webp")) mediaType = "image/webp";
   } catch {
-    // Se não conseguiu baixar a imagem, classifica só pelo texto
     return classifyMessage(message || "guarda essa imagem");
   }
 
   const response = await anthropic.messages.create({
     model: AI_MODEL_VISION,
     max_tokens: 600,
-    system: SYSTEM_PROMPT,
+    system: config.system_prompt,
     messages: [
       {
         role: "user",
         content: [
-          {
-            type: "image",
-            source: {
-              type: "base64",
-              media_type: mediaType,
-              data: imageData,
-            },
-          },
-          {
-            type: "text",
-            text:
-              message ||
-              "Analise esta imagem e classifique a ação corretamente.",
-          },
+          { type: "image", source: { type: "base64", media_type: mediaType, data: imageData } },
+          { type: "text", text: message || "Analise esta imagem e classifique a ação corretamente." },
         ],
       },
     ],
   });
 
-  const content =
-    response.content[0].type === "text" ? response.content[0].text : "{}";
+  const content = response.content[0].type === "text" ? response.content[0].text : "{}";
   const cleaned = content.replace(/```json\n?|\n?```/g, "").trim();
 
   try {
@@ -159,35 +201,33 @@ export async function classifyMessageWithImage(
   }
 }
 
-// Gera resumo financeiro do mês
+// ── Resumo financeiro ──────────────────────────────────────────────────────
 export async function generateFinancialSummary(data: {
-  expenses: Array<{
-    description: string;
-    amount: number;
-    category: string;
-    date: string;
-  }>;
+  expenses: Array<{ description: string; amount: number; category: string; date: string }>;
   period: string;
 }): Promise<string> {
-  const response = await anthropic.messages.create({
-    model: AI_MODEL,
-    max_tokens: 500,
-    system:
-      "Você é a Iasmin. Gere um resumo financeiro breve e claro em português brasileiro. Use emojis com moderação. Seja concisa e objetiva.",
-    messages: [
-      {
-        role: "user",
-        content: `Gere um resumo das despesas de ${data.period}:\n${JSON.stringify(data.expenses, null, 2)}`,
-      },
-    ],
-  });
+  const config = await getActiveConfig();
+  const systemMsg = "Você é a Iasmin. Gere um resumo financeiro breve e claro em português brasileiro. Use emojis com moderação. Seja concisa e objetiva.";
+  const userMsg = `Gere um resumo das despesas de ${data.period}:\n${JSON.stringify(data.expenses, null, 2)}`;
 
-  return response.content[0].type === "text"
-    ? response.content[0].text
-    : "Não foi possível gerar o resumo.";
+  if (config.provider === "openai") {
+    const response = await openai.chat.completions.create({
+      model: config.model || OPENAI_MODEL_DEFAULT,
+      max_tokens: 500,
+      messages: [{ role: "system", content: systemMsg }, { role: "user", content: userMsg }],
+    });
+    return response.choices[0]?.message?.content || "Não foi possível gerar o resumo.";
+  }
+
+  const response = await anthropic.messages.create({
+    model: config.model || AI_MODEL,
+    max_tokens: 500,
+    system: systemMsg,
+    messages: [{ role: "user", content: userMsg }],
+  });
+  return response.content[0].type === "text" ? response.content[0].text : "Não foi possível gerar o resumo.";
 }
 
-// Retorna uso de tokens da última chamada (para log)
 export function extractTokenUsage(response: { usage: { input_tokens: number; output_tokens: number } }) {
   return {
     promptTokens: response.usage.input_tokens,

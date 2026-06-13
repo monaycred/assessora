@@ -21,6 +21,7 @@ import {
   Settings,
   LogOut,
   Sparkles,
+  Brain,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -50,6 +51,7 @@ const navigation: NavItem[] = [
   { name: "Viagens", href: "/viagens", icon: Plane },
   { type: "divider", label: "SISTEMA" },
   { name: "Integrações", href: "/integracoes", icon: Puzzle },
+  { name: "IA Config", href: "/ia-config", icon: Brain, adminOnly: true },
   { name: "Tokens IA", href: "/tokens", icon: Cpu, adminOnly: true },
   { name: "Logs", href: "/logs", icon: ScrollText, adminOnly: true },
   { name: "Configurações", href: "/configuracoes", icon: Settings },
