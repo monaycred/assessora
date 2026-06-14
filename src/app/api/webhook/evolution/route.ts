@@ -380,7 +380,13 @@ export async function POST(req: NextRequest) {
         action: actionTaken,
       });
 
-      await sendTextMessage(fromNumber, responseMessage, instanceName);
+      try {
+        await sendTextMessage(fromNumber, responseMessage, instanceName);
+      } catch (sendErr: any) {
+        const detail = sendErr?.response?.data || sendErr?.message || String(sendErr);
+        console.error("[Webhook] Falha ao enviar resposta WhatsApp:", JSON.stringify(detail));
+        // Não propaga — Evolution não deve retentar o webhook por falha de envio
+      }
       await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "ai_response", message_content: messageContent, result: actionTaken });
 
       return NextResponse.json({ ok: true, action: actionTaken });
