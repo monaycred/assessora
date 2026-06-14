@@ -338,6 +338,24 @@ export async function POST(req: NextRequest) {
             actionTaken = "close_account";
             break;
           }
+          case "health":
+          case "trip":
+          case "query": {
+            // Intents que a IA pode confundir com lembrete — salva como lembrete genérico
+            const gd = classification.extracted_data as any;
+            const remindAt = gd.remind_at || gd.date || new Date(Date.now() + 86400000).toISOString();
+            await supabase.from("reminders").insert({
+              user_id: userId,
+              title: gd.title || messageContent,
+              description: messageContent,
+              remind_at: remindAt,
+              status: "pending",
+              is_recurring: false,
+              is_private: false,
+            });
+            actionTaken = "reminder";
+            break;
+          }
           default: {
             responseMessage = "Não entendi 😊 Tente:\n• _Iasmin, registra mercado 150_\n• _Iasmin, me lembra de cortar cabelo daqui 20 dias_\n• _Iasmin, agenda consulta dia 25 às 14h_";
             break;

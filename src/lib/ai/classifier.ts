@@ -14,17 +14,16 @@ REGRAS IMPORTANTES:
 
 INTENÇÕES QUE VOCÊ RECONHECE:
 1. "expense" - Registrar despesa/gasto/compra
-2. "reminder" - Criar lembrete
-3. "event" - Agendar evento/consulta/compromisso
+2. "reminder" - Criar lembrete / lembrar de fazer algo (tomar remédio, beber água, ligar, etc.)
+3. "event" - Agendar evento/consulta/compromisso em data e hora específica
 4. "shopping_list" - Criar/adicionar à lista de compras
 5. "wishlist" - Adicionar à lista de desejos
 6. "document" - Salvar documento
 7. "image" - Guardar imagem
-8. "health" - Registrar consulta médica, exame, corte de cabelo
-9. "trip" - Registrar viagem
-10. "query" - Consultar informações (resumo financeiro, lista etc.)
-11. "close_account" - Fechar conta / fechamento mensal
-12. "unknown" - Não reconhecido
+8. "close_account" - Fechar conta / fechamento mensal
+9. "unknown" - Não reconhecido
+
+REGRA IMPORTANTE: Se o usuário pede para SER LEMBRADO de fazer algo (tomar remédio, beber água, fazer exercício, ligar, etc.), use SEMPRE "reminder" — NUNCA "health" ou outro intent.
 
 EXTRAÇÃO DE DADOS — exemplos:
 - "registra mercado 230 no cartão da Marcela"
