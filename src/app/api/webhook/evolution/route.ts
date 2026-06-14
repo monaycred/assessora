@@ -232,15 +232,58 @@ export async function POST(req: NextRequest) {
           }
           case "reminder": {
             const rd = classification.extracted_data as any;
-            await supabase.from("reminders").insert({
-              user_id: userId,
-              title: rd.title || messageContent,
-              description: messageContent,
-              remind_at: rd.remind_at || rd.date || new Date(Date.now() + 86400000).toISOString(),
-              status: "pending",
-              is_recurring: false,
-              is_private: false,
-            });
+
+            if (rd.is_recurring && rd.repeat_days && rd.time) {
+              // Cria um lembrete por dia durante repeat_days dias
+              const [rh, rm] = (rd.time as string).split(":").map(Number);
+              const nowBrasil = new Date();
+              // Normaliza para meia-noite em Brasília (UTC-3)
+              const todayBrasil = new Date(nowBrasil.getTime() - ((nowBrasil.getTimezoneOffset() + 180) * 60000));
+              todayBrasil.setHours(0, 0, 0, 0);
+
+              const reminders = Array.from({ length: rd.repeat_days as number }, (_, i) => {
+                const d = new Date(todayBrasil);
+                d.setDate(d.getDate() + i);
+                // Constrói ISO com offset -03:00
+                const yyyy = d.getFullYear();
+                const mm   = String(d.getMonth() + 1).padStart(2, "0");
+                const dd   = String(d.getDate()).padStart(2, "0");
+                const hh   = String(rh).padStart(2, "0");
+                const min  = String(rm).padStart(2, "0");
+                return {
+                  user_id: userId,
+                  title: rd.title || messageContent,
+                  description: messageContent,
+                  remind_at: `${yyyy}-${mm}-${dd}T${hh}:${min}:00-03:00`,
+                  status: "pending",
+                  is_recurring: false,
+                  is_private: false,
+                };
+              });
+
+              await supabase.from("reminders").insert(reminders);
+              responseMessage = `✅ Pronto! Vou te lembrar *${rd.title || "disso"}* todos os dias às *${rd.time}h* durante *${rd.repeat_days} dias*. 📅`;
+            } else {
+              // Lembrete único
+              let remindAt = rd.remind_at || rd.date;
+              if (!remindAt && rd.days_from_now) {
+                // Calcula a data correta a partir de days_from_now
+                const d = new Date();
+                d.setDate(d.getDate() + (rd.days_from_now as number));
+                remindAt = d.toISOString();
+              }
+              remindAt = remindAt || new Date(Date.now() + 86400000).toISOString();
+
+              await supabase.from("reminders").insert({
+                user_id: userId,
+                title: rd.title || messageContent,
+                description: messageContent,
+                remind_at: remindAt,
+                status: "pending",
+                is_recurring: false,
+                is_private: false,
+              });
+            }
             actionTaken = "reminder";
             break;
           }

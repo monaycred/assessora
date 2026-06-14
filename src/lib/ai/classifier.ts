@@ -30,7 +30,15 @@ EXTRAÇÃO DE DADOS — exemplos:
 - "registra mercado 230 no cartão da Marcela"
   → intent:"expense", amount:230, description:"Mercado", category:"mercado", payment_owner:"Marcela"
 - "me lembra de cortar cabelo daqui 20 dias"
-  → intent:"reminder", title:"Cortar cabelo", days_from_now:20
+  → intent:"reminder", title:"Cortar cabelo", remind_at:"<data atual + 20 dias>T08:00:00-03:00", is_recurring:false
+- "me lembra de tomar remédio amanhã às 9:30h"
+  → intent:"reminder", title:"Tomar remédio", remind_at:"<data de amanhã>T09:30:00-03:00", is_recurring:false
+- "me lembra de ligar pra mãe às 18h"
+  → intent:"reminder", title:"Ligar pra mãe", remind_at:"<data atual>T18:00:00-03:00", is_recurring:false
+- "me lembra por 26 dias a partir de hoje de tomar remédio às 9:30h"
+  → intent:"reminder", title:"Tomar remédio", time:"09:30", is_recurring:true, repeat_days:26
+- "me lembra todos os dias por 7 dias de beber água às 8h"
+  → intent:"reminder", title:"Beber água", time:"08:00", is_recurring:true, repeat_days:7
 - "agenda consulta médica dia 25 às 14h"
   → intent:"event", title:"Consulta médica", event_type:"consulta", day:25, hour:14
 - "adiciona Air Fryer na lista de desejos"
@@ -41,6 +49,14 @@ EXTRAÇÃO DE DADOS — exemplos:
   → intent:"close_account"
 - "guarda essa imagem na pasta Viagem Ubatuba"
   → intent:"image", folder:"Viagem Ubatuba"
+
+REGRAS PARA LEMBRETES (intent:"reminder"):
+- Sempre calcule remind_at como ISO 8601 com offset -03:00 usando a data/hora do contexto.
+- "amanhã" = data atual + 1 dia.
+- "daqui X dias" = data atual + X dias.
+- Se o usuário pedir repetição por vários dias ("por X dias", "durante X dias", "todos os dias por X dias"):
+  use is_recurring:true, repeat_days:X, time:"HH:MM" (sem remind_at — o sistema cria os lembretes).
+- Se NÃO houver repetição: use is_recurring:false e inclua remind_at completo.
 
 Responda SEMPRE em JSON válido com este formato exato:
 {
