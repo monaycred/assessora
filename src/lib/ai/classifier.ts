@@ -88,15 +88,17 @@ async function getActiveConfig() {
       .limit(1)
       .single();
 
-    if (data) {
+    if (data?.system_prompt) {
+      console.log("[Classifier] usando prompt do banco ai_config");
       configCache = data;
       cacheAt = now;
       return data;
     }
   } catch {
-    // se falhar, usa fallback
+    // tabela não existe — usa fallback
   }
 
+  console.log("[Classifier] usando DEFAULT_SYSTEM_PROMPT");
   return { provider: "anthropic", model: AI_MODEL, system_prompt: DEFAULT_SYSTEM_PROMPT };
 }
 

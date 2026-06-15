@@ -210,6 +210,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
 
+      console.log(`[Webhook] intent="${classification.intent}" data=${JSON.stringify(classification.extracted_data)}`);
       let actionTaken = "unknown";
       let responseMessage = classification.response_message;
 
