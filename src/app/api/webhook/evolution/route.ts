@@ -238,13 +238,20 @@ export async function POST(req: NextRequest) {
               // Cria um lembrete por dia durante repeat_days dias
               const [rh, rm] = (rd.time as string).split(":").map(Number);
               const nowBrasil = new Date();
-              // Normaliza para meia-noite em Brasília (UTC-3)
-              const todayBrasil = new Date(nowBrasil.getTime() - ((nowBrasil.getTimezoneOffset() + 180) * 60000));
+              // Converte para horário de Brasília (UTC-3)
+              const brasilMs = nowBrasil.getTime() + ((-3 * 60) - nowBrasil.getTimezoneOffset()) * 60000;
+              const nowBrasilDate = new Date(brasilMs);
+              // Se o horário de hoje já passou, começa do dia seguinte
+              const todayReminderMs = new Date(brasilMs);
+              todayReminderMs.setHours(rh, rm, 0, 0);
+              const startOffset = nowBrasilDate > todayReminderMs ? 1 : 0;
+              // Normaliza para meia-noite em Brasília
+              const todayBrasil = new Date(brasilMs);
               todayBrasil.setHours(0, 0, 0, 0);
 
               const reminders = Array.from({ length: rd.repeat_days as number }, (_, i) => {
                 const d = new Date(todayBrasil);
-                d.setDate(d.getDate() + i);
+                d.setDate(d.getDate() + i + startOffset);
                 // Constrói ISO com offset -03:00
                 const yyyy = d.getFullYear();
                 const mm   = String(d.getMonth() + 1).padStart(2, "0");
