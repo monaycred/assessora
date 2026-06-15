@@ -23,6 +23,7 @@ import {
   Sparkles,
   Brain,
   FolderKanban,
+  Target,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,7 @@ const navigation: NavItem[] = [
   { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle, adminOnly: true },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
+  { name: "Controle de Vícios", href: "/addiction", icon: Target },
   { name: "Financeiro", href: "/financeiro", icon: DollarSign },
   { name: "Lembretes", href: "/lembretes", icon: Bell },
   { name: "Agenda", href: "/agenda", icon: Calendar },

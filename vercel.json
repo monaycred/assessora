@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/addiction/cron/check-milestones",
+      "schedule": "0 * * * *"
+    }
+  ]
+}
