@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { validateCPF } from "@/lib/utils";
+import { sendTextMessage } from "@/lib/evolution/client";
 
 // POST /api/auth/register
 export async function POST(req: NextRequest) {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Cria perfil do usuário
+    // Cria perfil do usuário (inativo até aprovação)
     const { error: profileError } = await supabase
       .from("user_profiles")
       .insert({
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
         email,
         phone: phone || null,
         role: "member",
-        is_active: true,
+        is_active: false,
       });
 
     if (profileError) {
@@ -84,6 +85,17 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Cria contato pendente de aprovação (aparece em Aprovações)
+    await supabase.from("contacts").insert({
+      phone_number: phone || "",
+      name: full_name,
+      cpf,
+      email,
+      status: "aguardando_aprovacao",
+      user_id: authData.user.id,
+      onboarding_step: 6,
+    });
 
     // Registra log
     await supabase.from("audit_logs").insert({

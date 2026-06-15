@@ -48,6 +48,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Se esta autenticado, verifica se a conta foi aprovada (is_active)
+  if (user && !isPublicRoute) {
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("is_active")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!profile?.is_active) {
+      // Derruba a sessão e redireciona para login com aviso
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      url.searchParams.set("pendente", "1");
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Se esta autenticado e tenta acessar login/cadastro, redireciona para dashboard
   if (user && (pathname === "/login" || pathname === "/cadastro")) {
     const url = request.nextUrl.clone();

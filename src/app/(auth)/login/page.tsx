@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCPF, cleanCPF, validateCPF } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -13,11 +13,16 @@ export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const searchParams = useSearchParams();
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(
+    searchParams.get("pendente") === "1"
+      ? "Seu cadastro ainda está aguardando aprovação. Você receberá uma mensagem no WhatsApp quando for liberado."
+      : ""
+  );
 
   const handleCPFChange = (value: string) => {
     const cleaned = cleanCPF(value);

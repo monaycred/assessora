@@ -74,7 +74,6 @@ export default function CadastroPage() {
       }
 
       setSuccess(true);
-      setTimeout(() => router.push("/login"), 3000);
     } catch {
       setError("Erro inesperado. Tente novamente.");
     } finally {
@@ -85,13 +84,13 @@ export default function CadastroPage() {
   if (success) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center p-4">
-        <div className="text-center animate-fade-in">
+        <div className="text-center animate-fade-in max-w-xs">
           <div className="w-16 h-16 rounded-2xl bg-primary-500/10 border border-primary-500/30 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-8 h-8 text-primary-500" />
           </div>
-          <h2 className="text-xl font-bold text-dark-100 mb-2">Conta criada!</h2>
+          <h2 className="text-xl font-bold text-dark-100 mb-2">Cadastro enviado!</h2>
           <p className="text-dark-400 text-sm">
-            Redirecionando para o login...
+            Seu cadastro foi recebido e está aguardando aprovação. Você receberá uma mensagem no WhatsApp quando for liberado.
           </p>
         </div>
       </div>
