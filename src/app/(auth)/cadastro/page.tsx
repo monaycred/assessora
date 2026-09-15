@@ -33,12 +33,61 @@ export default function CadastroPage() {
     }
   };
 
+  const handlePhoneChange = (value: string) => {
+    // Remove non-numeric characters
+    const cleaned = value.replace(/\D/g, "");
+
+    // If starts with 55 (Brazil code), remove it to avoid duplication
+    let phone = cleaned.startsWith("55") ? cleaned.slice(2) : cleaned;
+
+    // Limit to 11 digits (2 DDD + 9 number)
+    if (phone.length > 11) {
+      phone = phone.slice(0, 11);
+    }
+
+    // Format: (XX) XXXXX-XXXX
+    let formatted = "";
+    if (phone.length > 0) {
+      if (phone.length <= 2) {
+        formatted = `(${phone}`;
+      } else if (phone.length <= 7) {
+        formatted = `(${phone.slice(0, 2)}) ${phone.slice(2)}`;
+      } else {
+        formatted = `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
+      }
+    }
+
+    setForm((f) => ({ ...f, phone: formatted }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
+    if (!form.full_name.trim()) {
+      setError("Nome completo é obrigatório.");
+      return;
+    }
+
     if (!validateCPF(cleanCPF(form.cpf))) {
       setError("CPF inválido.");
+      return;
+    }
+
+    if (!form.email.trim()) {
+      setError("E-mail é obrigatório.");
+      return;
+    }
+
+    if (!form.phone.trim()) {
+      setError("WhatsApp é obrigatório.");
+      return;
+    }
+
+    // Validate phone has at least 10 digits (DDD + number)
+    const phoneDigits = form.phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      setError("WhatsApp inválido. Digite um número válido (DDD + número).");
       return;
     }
 
@@ -54,6 +103,10 @@ export default function CadastroPage() {
 
     setLoading(true);
     try {
+      // Format phone with Brazil country code (55)
+      const phoneDigits = form.phone.replace(/\D/g, "");
+      const phoneWithCountryCode = `55${phoneDigits}`;
+
       const response = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -61,7 +114,7 @@ export default function CadastroPage() {
           full_name: form.full_name,
           cpf: cleanCPF(form.cpf),
           email: form.email,
-          phone: form.phone,
+          phone: phoneWithCountryCode,
           password: form.password,
         }),
       });
@@ -151,13 +204,14 @@ export default function CadastroPage() {
             />
 
             <Input
-              label="WhatsApp (opcional)"
+              label="WhatsApp 🇧🇷"
               type="text"
-              placeholder="55119xxxxxxxx"
+              placeholder="(11) 9XXXX-XXXX"
               value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onChange={(e) => handlePhoneChange(e.target.value)}
               leftIcon={<Phone className="w-4 h-4" />}
-              hint="Formato: 5511999999999"
+              hint="Digite seu DDD e número (sem o 55)"
+              required
             />
 
             <Input

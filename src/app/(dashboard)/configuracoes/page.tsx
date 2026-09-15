@@ -17,6 +17,33 @@ export default function ConfiguracoesPage() {
   const [savingBriefing, setSavingBriefing] = useState(false);
   const [savedBriefing, setSavedBriefing]   = useState(false);
 
+  const handlePhoneChange = (value: string) => {
+    // Remove non-numeric characters
+    const cleaned = value.replace(/\D/g, "");
+
+    // If starts with 55 (Brazil code), remove it to avoid duplication
+    let phone = cleaned.startsWith("55") ? cleaned.slice(2) : cleaned;
+
+    // Limit to 11 digits (2 DDD + 9 number)
+    if (phone.length > 11) {
+      phone = phone.slice(0, 11);
+    }
+
+    // Format: (XX) XXXXX-XXXX
+    let formatted = "";
+    if (phone.length > 0) {
+      if (phone.length <= 2) {
+        formatted = `(${phone}`;
+      } else if (phone.length <= 7) {
+        formatted = `(${phone.slice(0, 2)}) ${phone.slice(2)}`;
+      } else {
+        formatted = `(${phone.slice(0, 2)}) ${phone.slice(2, 7)}-${phone.slice(7)}`;
+      }
+    }
+
+    setProfile((p: any) => ({ ...p, phone: formatted }));
+  };
+
   useEffect(() => {
     const load = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -28,6 +55,21 @@ export default function ConfiguracoesPage() {
         .eq("user_id", user.id)
         .single();
 
+      // Format phone for display (remove country code 55 if present)
+      if (data?.phone) {
+        const phoneDigits = data.phone.replace(/\D/g, "");
+        let displayPhone = phoneDigits.startsWith("55")
+          ? phoneDigits.slice(2)
+          : phoneDigits;
+
+        // Format to (XX) XXXXX-XXXX
+        if (displayPhone.length === 11) {
+          displayPhone = `(${displayPhone.slice(0, 2)}) ${displayPhone.slice(2, 7)}-${displayPhone.slice(7)}`;
+        }
+
+        data.phone = displayPhone;
+      }
+
       setProfile(data);
       setLoading(false);
     };
@@ -38,11 +80,15 @@ export default function ConfiguracoesPage() {
     if (!profile) return;
     setSaving(true);
 
+    // Format phone with Brazil country code (55)
+    const phoneDigits = profile.phone.replace(/\D/g, "");
+    const phoneWithCountryCode = phoneDigits ? `55${phoneDigits}` : "";
+
     await supabase
       .from("user_profiles")
       .update({
         full_name: profile.full_name,
-        phone: profile.phone,
+        phone: phoneWithCountryCode,
       })
       .eq("id", profile.id);
 
@@ -106,12 +152,11 @@ export default function ConfiguracoesPage() {
                 hint="O e-mail não pode ser alterado aqui"
               />
               <Input
-                label="WhatsApp"
+                label="WhatsApp 🇧🇷"
                 value={profile.phone || ""}
-                placeholder="5511999999999"
-                onChange={(e) =>
-                  setProfile((p: any) => ({ ...p, phone: e.target.value }))
-                }
+                placeholder="(11) 9XXXX-XXXX"
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                hint="Digite seu DDD e número (sem o 55)"
               />
               <Button
                 onClick={handleSave}
