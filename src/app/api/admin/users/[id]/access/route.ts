@@ -3,6 +3,8 @@ import { getAccessUser } from '@/lib/access';
 import { createAdminClient } from '@/lib/supabase/server';
 import { sendPasswordRecovery } from '@/lib/auth/password-recovery';
 import { sendTextMessage } from '@/lib/evolution/client';
+import { recoveryErrorMessage } from '@/lib/auth/recovery-error';
+import { formatPhone } from '@/lib/utils';
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const admin = await getAccessUser();
@@ -22,16 +24,18 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   if (action === 'send_recovery' || action === 'send_recovery_whatsapp') {
     if (!target.is_active) return NextResponse.json({ error: 'Ative a conta antes de enviar o link' }, { status: 400 });
     if (!target.email) return NextResponse.json({ error: 'Usuário sem e-mail cadastrado' }, { status: 400 });
+    let recoveryDestination = target.email;
     if (action === 'send_recovery') {
       const { error } = await sendPasswordRecovery(target.email);
       if (error) {
         console.error('[Admin recovery] Failed to send:', error.message);
-        return NextResponse.json({ error: 'Não foi possível enviar o e-mail de recuperação' }, { status: 503 });
+        return NextResponse.json({ error: recoveryErrorMessage(error.message) }, { status: error.status === 429 ? 429 : 503 });
       }
     } else {
       const { data: contact } = await db.from('contacts')
         .select('phone_number, status').eq('user_id', target.user_id).eq('status', 'aprovado').maybeSingle();
       if (!contact?.phone_number) return NextResponse.json({ error: 'Não há WhatsApp aprovado para esta conta' }, { status: 400 });
+      recoveryDestination = formatPhone(contact.phone_number);
       const redirectTo = new URL('/redefinir-senha', process.env.NEXT_PUBLIC_APP_URL || 'https://assessora.gedaias.com').toString();
       const { data, error } = await db.auth.admin.generateLink({ type: 'recovery', email: target.email, options: { redirectTo } });
       if (error || !data?.properties?.action_link) {
@@ -45,7 +49,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       }
     }
     await db.from('audit_logs').insert({ user_id: admin.id, action: 'password_recovery_sent', entity_type: 'user_profiles', new_data: { user_profile_id: id, channel: action === 'send_recovery' ? 'email' : 'whatsapp' } });
-    return NextResponse.json({ ok: true, message: action === 'send_recovery' ? 'Link enviado ao e-mail cadastrado.' : 'Link enviado ao WhatsApp aprovado.' });
+    return NextResponse.json({ ok: true, message: `Link enviado para ${recoveryDestination}.` });
   }
 
   if (target.id === admin.id && action === 'deactivate') {

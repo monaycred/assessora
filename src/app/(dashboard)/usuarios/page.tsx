@@ -21,6 +21,8 @@ export default async function UsuariosPage() {
     .order("created_at", { ascending: false });
   const { data: accesses } = await supabase.from("user_module_access")
     .select("user_profile_id, module_key, enabled, expires_at");
+  const { data: contacts } = await supabase.from("contacts")
+    .select("user_id, phone_number, status").eq("status", "aprovado");
 
   return (
     <div>
@@ -45,7 +47,7 @@ export default async function UsuariosPage() {
               {users.map((u: any) => (
                 <div
                   key={u.id}
-                  className="flex items-center justify-between p-4 bg-dark-800/40 rounded-xl border border-dark-700/30"
+                  className="flex flex-wrap items-start justify-between gap-3 p-4 bg-dark-800/40 rounded-xl border border-dark-700/30"
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
@@ -68,12 +70,17 @@ export default async function UsuariosPage() {
                       />}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-start justify-end gap-2">
                     <UserRoleManager profileId={u.id} currentAdminId={admin.id} initialRole={u.role} />
                     <Badge variant={u.is_active ? "success" : "danger"} dot>
                       {u.is_active ? "Ativo" : "Inativo"}
                     </Badge>
-                    <UserAccessManager profileId={u.id} currentAdminId={admin.id} initialActive={u.is_active} />
+                    <UserAccessManager
+                      profileId={u.id} currentAdminId={admin.id} initialActive={u.is_active}
+                      email={u.email || ""}
+                      recoveryPhone={contacts?.find((contact: any) => contact.user_id === u.user_id)?.phone_number || null}
+                      profilePhone={u.phone || null}
+                    />
                   </div>
                 </div>
               ))}

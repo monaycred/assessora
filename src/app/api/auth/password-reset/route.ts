@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { cleanCPF, validateCPF } from '@/lib/utils';
 import { sendPasswordRecovery } from '@/lib/auth/password-recovery';
+import { recoveryErrorMessage } from '@/lib/auth/recovery-error';
 
 const genericMessage = 'Se houver uma conta ativa com esse CPF, enviaremos um link ao e-mail cadastrado.';
 
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
   const { error } = await sendPasswordRecovery(profile.email);
   if (error) {
     console.error('[Password recovery] Failed to send:', error.message);
-    return NextResponse.json({ error: 'Não foi possível enviar o e-mail agora. Tente novamente mais tarde.' }, { status: 503 });
+    return NextResponse.json({ error: recoveryErrorMessage(error.message) }, { status: error.status === 429 ? 429 : 503 });
   }
   return NextResponse.json({ message: genericMessage });
 }
