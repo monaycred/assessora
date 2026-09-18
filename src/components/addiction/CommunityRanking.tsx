@@ -8,6 +8,7 @@ import { Loader2 } from 'lucide-react';
 interface RankingEntry {
   position: number;
   community_name: string;
+  avatar_url?: string | null;
   current_streak_days: number;
   best_streak_days: number;
 }
@@ -94,6 +95,7 @@ export function CommunityRanking({ limit = 10 }: CommunityRankingProps) {
 
                 {/* Nome e detalhes */}
                 <div>
+                  {entry.avatar_url && <img src={entry.avatar_url} alt="" className="mb-1 h-8 w-8 rounded-full object-cover" />}
                   <p className="font-semibold text-gray-900">{entry.community_name}</p>
                   <p className="text-xs text-gray-600">
                     Melhor: {entry.best_streak_days} dias

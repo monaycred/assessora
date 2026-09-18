@@ -32,6 +32,9 @@ export default function GruposPage() {
     fetch('/api/addiction/groups').then((response) => response.json())
       .then((data) => setGroups(data.groups || []))
       .catch(() => setError('Não foi possível carregar os grupos'));
+    fetch('/api/profile').then((response) => response.json())
+      .then((data) => setNickname(data.profile?.nickname || ''))
+      .catch(() => undefined);
   }, []);
 
   async function createGroup(event: React.FormEvent) {
@@ -56,7 +59,7 @@ export default function GruposPage() {
     try {
       const response = await fetch('/api/addiction/groups/join', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim(), nickname: nickname.trim() }),
+        body: JSON.stringify({ token: token.trim() }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao entrar no grupo');
@@ -106,7 +109,7 @@ export default function GruposPage() {
       <Card><h2 className="mb-4 text-lg font-semibold">Entrar com convite</h2>
         <form onSubmit={joinGroup} className="space-y-3">
           <Input label="Código do convite" value={token} onChange={(event) => setToken(event.target.value)} required />
-          <Input label="Seu apelido no grupo" value={nickname} onChange={(event) => setNickname(event.target.value)} minLength={2} maxLength={24} required />
+          <p className="text-sm text-dark-300">Seu apelido no grupo: <strong>{nickname || 'seu primeiro nome'}</strong>. Você pode alterá-lo em <Link href="/configuracoes" className="text-primary-400">Configurações</Link>.</p>
           <p className="text-xs text-dark-400">É necessário ter cadastro completo e aprovado na Iasmin.</p>
           <Button type="submit" disabled={busy}>Entrar no grupo</Button>
         </form>

@@ -5,14 +5,16 @@ import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
-import { createClient } from "@/lib/supabase/client";
 import { Settings, User, Bell, Shield, Sparkles, Clock } from "lucide-react";
 
 export default function ConfiguracoesPage() {
-  const supabase = createClient();
   const [profile, setProfile] = useState<any>(null);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]           = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [savingAvatar, setSavingAvatar] = useState(false);
   const [saved, setSaved]             = useState(false);
   const [savingBriefing, setSavingBriefing] = useState(false);
   const [savedBriefing, setSavedBriefing]   = useState(false);
@@ -46,14 +48,9 @@ export default function ConfiguracoesPage() {
 
   useEffect(() => {
     const load = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      const response = await fetch('/api/profile');
+      const result = await response.json();
+      const data = result.profile;
 
       // Format phone for display (remove country code 55 if present)
       if (data?.phone) {
@@ -69,49 +66,95 @@ export default function ConfiguracoesPage() {
 
         data.phone = displayPhone;
       }
+      if (data?.emergency_phone) {
+        const digits = data.emergency_phone.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '');
+        data.emergency_phone = digits.length === 11
+          ? `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+          : digits.length === 10 ? `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}` : digits;
+      }
 
       setProfile(data);
       setLoading(false);
     };
-    load();
+    load().catch(() => { setError('Não foi possível carregar o perfil'); setLoading(false); });
   }, []);
 
   const handleSave = async () => {
     if (!profile) return;
     setSaving(true);
+    setError(''); setNotice('');
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'details', full_name: profile.full_name,
+          nickname: profile.nickname, phone: profile.phone, birth_date: profile.birth_date,
+          emergency_name: profile.emergency_name, emergency_phone: profile.emergency_phone,
+          emergency_relationship: profile.emergency_relationship }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao salvar');
+      setSaved(true); setNotice('Perfil salvo. O novo WhatsApp já está vinculado à sua conta.');
+      setTimeout(() => setSaved(false), 3000);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar'); }
+    finally { setSaving(false); }
+  };
 
-    // Format phone with Brazil country code (55)
-    const phoneDigits = profile.phone.replace(/\D/g, "");
-    const phoneWithCountryCode = phoneDigits ? `55${phoneDigits}` : "";
+  const handleAvatarUpload = async (file?: File) => {
+    if (!file) return;
+    setSavingAvatar(true); setError(''); setNotice('');
+    try {
+      const form = new FormData();
+      form.set('photo', file);
+      const response = await fetch('/api/profile/avatar', { method: 'POST', body: form });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao enviar foto');
+      setProfile((current: any) => ({ ...current, avatar_url: result.avatar_url }));
+      setNotice('Foto atualizada. Ela poderá aparecer nas comunidades.');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao enviar foto'); }
+    finally { setSavingAvatar(false); }
+  };
 
-    await supabase
-      .from("user_profiles")
-      .update({
-        full_name: profile.full_name,
-        phone: phoneWithCountryCode,
-      })
-      .eq("id", profile.id);
+  const handleAvatarRemove = async () => {
+    setSavingAvatar(true); setError('');
+    try {
+      const response = await fetch('/api/profile/avatar', { method: 'DELETE' });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao remover foto');
+      setProfile((current: any) => ({ ...current, avatar_url: null }));
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao remover foto'); }
+    finally { setSavingAvatar(false); }
+  };
 
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const handleSaveEmail = async () => {
+    if (!profile) return;
+    setSavingEmail(true); setError(''); setNotice('');
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'email', email: profile.email }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao alterar e-mail');
+      setNotice(result.message);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao alterar e-mail'); }
+    finally { setSavingEmail(false); }
   };
 
   const handleSaveBriefing = async () => {
     if (!profile) return;
-    setSavingBriefing(true);
-
-    await supabase
-      .from("user_profiles")
-      .update({
-        briefing_enabled: profile.briefing_enabled ?? false,
-        briefing_time:    profile.briefing_time    ?? "08:00",
-      })
-      .eq("id", profile.id);
-
-    setSavingBriefing(false);
-    setSavedBriefing(true);
-    setTimeout(() => setSavedBriefing(false), 3000);
+    setSavingBriefing(true); setError('');
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'briefing', briefing_enabled: profile.briefing_enabled ?? false,
+          briefing_time: profile.briefing_time?.slice(0, 5) || '08:00' }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Erro ao salvar briefing');
+      setSavedBriefing(true);
+      setTimeout(() => setSavedBriefing(false), 3000);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro ao salvar briefing'); }
+    finally { setSavingBriefing(false); }
   };
 
   return (
@@ -119,6 +162,8 @@ export default function ConfiguracoesPage() {
       <Header title="Configurações" subtitle="Gerencie sua conta e preferências" />
 
       <div className="p-6 space-y-5">
+        {error && <p role="alert" className="rounded-lg border border-red-500/40 p-3 text-sm text-red-400">{error}</p>}
+        {notice && <p role="status" className="rounded-lg border border-primary-500/40 p-3 text-sm text-primary-400">{notice}</p>}
         {/* Perfil */}
         <Card>
           <div className="flex items-center gap-2 mb-5">
@@ -132,12 +177,33 @@ export default function ConfiguracoesPage() {
             </div>
           ) : profile ? (
             <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                {profile.avatar_url ? <img src={profile.avatar_url} alt="Sua foto de perfil" className="h-16 w-16 rounded-full object-cover" />
+                  : <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary-500/10 text-primary-400"><User className="h-7 w-7" /></div>}
+                <div className="space-y-2">
+                  <label className="block cursor-pointer text-sm text-primary-400">
+                    {savingAvatar ? 'Enviando foto...' : 'Escolher foto'}
+                    <input type="file" accept="image/jpeg,image/png,image/webp" disabled={savingAvatar}
+                      className="sr-only" onChange={(event) => handleAvatarUpload(event.target.files?.[0])} />
+                  </label>
+                  {profile.avatar_url && <button type="button" onClick={handleAvatarRemove} disabled={savingAvatar}
+                    className="block text-xs text-dark-400 hover:text-dark-200">Remover foto</button>}
+                  <p className="text-xs text-dark-500">Opcional · JPG, PNG ou WebP · até 2 MB</p>
+                </div>
+              </div>
               <Input
                 label="Nome completo"
                 value={profile.full_name || ""}
                 onChange={(e) =>
                   setProfile((p: any) => ({ ...p, full_name: e.target.value }))
                 }
+              />
+              <Input
+                label="Apelido"
+                value={profile.nickname || ""}
+                maxLength={32}
+                onChange={(e) => setProfile((p: any) => ({ ...p, nickname: e.target.value }))}
+                hint="Como você quer ser chamado na Iasmin"
               />
               <Input
                 label="CPF"
@@ -148,9 +214,11 @@ export default function ConfiguracoesPage() {
               <Input
                 label="E-mail"
                 value={profile.email || ""}
-                disabled
-                hint="O e-mail não pode ser alterado aqui"
+                type="email"
+                onChange={(e) => setProfile((p: any) => ({ ...p, email: e.target.value }))}
+                hint="A troca de e-mail precisa ser confirmada pelo link enviado pelo Supabase"
               />
+              <Button onClick={handleSaveEmail} loading={savingEmail} variant="outline">Alterar e-mail</Button>
               <Input
                 label="WhatsApp 🇧🇷"
                 value={profile.phone || ""}
@@ -158,6 +226,17 @@ export default function ConfiguracoesPage() {
                 onChange={(e) => handlePhoneChange(e.target.value)}
                 hint="Digite seu DDD e número (sem o 55)"
               />
+              <Input label="Data de nascimento" type="date" value={profile.birth_date || ''}
+                onChange={(e) => setProfile((p: any) => ({ ...p, birth_date: e.target.value }))} />
+              <div className="space-y-3 rounded-lg border border-dark-700 p-4">
+                <p className="text-sm font-medium text-dark-200">Contato de emergência (privado)</p>
+                <Input label="Nome do contato" value={profile.emergency_name || ''} maxLength={120}
+                  onChange={(e) => setProfile((p: any) => ({ ...p, emergency_name: e.target.value }))} />
+                <Input label="WhatsApp do contato" value={profile.emergency_phone || ''} placeholder="(11) 9XXXX-XXXX"
+                  onChange={(e) => setProfile((p: any) => ({ ...p, emergency_phone: e.target.value }))} />
+                <Input label="Relação (opcional)" value={profile.emergency_relationship || ''} maxLength={60}
+                  onChange={(e) => setProfile((p: any) => ({ ...p, emergency_relationship: e.target.value }))} />
+              </div>
               <Button
                 onClick={handleSave}
                 loading={saving}
@@ -293,7 +372,7 @@ export default function ConfiguracoesPage() {
                 Enviar e-mail
               </Button>
             </div>
-            <div className="flex items-center justify-between py-3">
+            {profile?.role === 'admin' && <div className="flex items-center justify-between py-3">
               <div>
                 <p className="text-sm text-dark-100">Números autorizados</p>
                 <p className="text-xs text-dark-400">
@@ -303,7 +382,7 @@ export default function ConfiguracoesPage() {
               <Button variant="secondary" size="sm" onClick={() => (window.location.href = "/whatsapp")}>
                 Gerenciar
               </Button>
-            </div>
+            </div>}
           </div>
         </Card>
       </div>

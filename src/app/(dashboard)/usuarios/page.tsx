@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { createAdminClient } from "@/lib/supabase/server";
 import ModuleAccessManager from "@/components/admin/ModuleAccessManager";
+import UserRoleManager from "@/components/admin/UserRoleManager";
 import { getAccessUser } from "@/lib/access";
 import { redirect } from "next/navigation";
-import { formatDate, formatCPF } from "@/lib/utils";
-import { Users, Shield, User } from "lucide-react";
+import { formatCPF } from "@/lib/utils";
+import { Users, User } from "lucide-react";
 
 export default async function UsuariosPage() {
   const admin = await getAccessUser();
@@ -47,10 +48,12 @@ export default async function UsuariosPage() {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-full bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
-                      <User className="w-4 h-4 text-primary-500" />
+                      {u.avatar_url ? <img src={u.avatar_url} alt="" className="h-full w-full rounded-full object-cover" />
+                        : <User className="w-4 h-4 text-primary-500" />}
                     </div>
                     <div>
                       <p className="text-sm font-medium text-dark-100">{u.full_name}</p>
+                      {u.nickname && <p className="text-xs text-primary-400">Apelido: {u.nickname}</p>}
                       <div className="flex items-center gap-2 mt-0.5">
                         <p className="text-xs text-dark-400">{formatCPF(u.cpf)}</p>
                         <span className="text-dark-600">•</span>
@@ -65,9 +68,7 @@ export default async function UsuariosPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={u.role === "admin" ? "primary" : "default"} dot>
-                      {u.role === "admin" ? "Admin" : "Membro"}
-                    </Badge>
+                    <UserRoleManager profileId={u.id} currentAdminId={admin.id} initialRole={u.role} />
                     <Badge variant={u.is_active ? "success" : "danger"} dot>
                       {u.is_active ? "Ativo" : "Inativo"}
                     </Badge>

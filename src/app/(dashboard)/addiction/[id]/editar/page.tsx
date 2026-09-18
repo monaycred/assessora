@@ -9,7 +9,7 @@ import Label from '@/components/ui/Label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
-import { isValidCommunityName, milestonesToDays } from '@/lib/addiction/utils';
+import { milestonesToDays } from '@/lib/addiction/utils';
 
 export default function EditTrackerPage() {
   const params = useParams<{ id: string }>();
@@ -25,7 +25,6 @@ export default function EditTrackerPage() {
     goal_days: null as number | null,
     notification_time: '07:00',
     is_public: false,
-    community_name_custom: '',
   });
 
   const [milestonesText, setMilestonesText] = useState('');
@@ -49,7 +48,6 @@ export default function EditTrackerPage() {
         goal_days: t.goal_days,
         notification_time: t.notification_time,
         is_public: t.is_public,
-        community_name_custom: t.community_name_custom || '',
       });
 
       // Marcos em dias (legível)
@@ -68,14 +66,6 @@ export default function EditTrackerPage() {
     setError(null);
 
     try {
-      // Validar nome comunidade
-      if (formData.is_public && formData.community_name_custom) {
-        const validation = isValidCommunityName(formData.community_name_custom);
-        if (!validation.valid) {
-          throw new Error(validation.error);
-        }
-      }
-
       const res = await fetch(`/api/addiction/trackers/${params.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -85,7 +75,6 @@ export default function EditTrackerPage() {
           goal_days: formData.goal_days,
           notification_time: formData.notification_time,
           is_public: formData.is_public,
-          community_name_custom: formData.community_name_custom || undefined,
         }),
       });
 
@@ -245,26 +234,9 @@ export default function EditTrackerPage() {
               <span className="text-sm">Aparecer na comunidade</span>
             </label>
 
-            {formData.is_public && (
-              <div>
-                <Label htmlFor="communityName">Seu nome na comunidade</Label>
-                <Input
-                  id="communityName"
-                  placeholder={tracker.community_name}
-                  value={formData.community_name_custom}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      community_name_custom: e.target.value,
-                    })
-                  }
-                  maxLength={20}
-                />
-                <p className="text-xs text-gray-600 mt-1">
-                  Deixe vazio para usar: <strong>{tracker.community_name}</strong>
-                </p>
-              </div>
-            )}
+            {formData.is_public && <p className="text-xs text-gray-600">
+              Seu apelido e sua foto nas comunidades são definidos em <Link href="/configuracoes" className="text-primary-500">Configurações</Link>.
+            </p>}
           </CardContent>
         </Card>
 

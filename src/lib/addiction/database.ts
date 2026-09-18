@@ -511,7 +511,7 @@ export async function deleteComment(
 export async function getCommunityRanking(limit: number = 10) {
   const { data, error } = await supabase
     .from('addiction_trackers')
-    .select('community_name_custom, community_name, current_streak_days, best_streak_days')
+    .select('id, user_id, community_name_custom, community_name, current_streak_days, best_streak_days')
     .eq('is_public', true)
     .eq('is_active', true)
     .order('current_streak_days', { ascending: false })

@@ -28,8 +28,20 @@ export async function GET(
 ) {
   try {
     const comments = await getPostComments((await params).id);
-
-    return NextResponse.json({ comments }, { status: 200 });
+    const trackerIds = [...new Set(comments.map((comment) => comment.tracker_id))];
+    const { data: trackers } = trackerIds.length
+      ? await supabase.from('addiction_trackers').select('id, user_id').in('id', trackerIds)
+      : { data: [] };
+    const userIds = [...new Set((trackers || []).map((tracker: any) => tracker.user_id))];
+    const { data: profiles } = userIds.length
+      ? await supabase.from('user_profiles').select('id, nickname, avatar_url').in('id', userIds)
+      : { data: [] };
+    return NextResponse.json({ comments: comments.map((comment) => {
+      const tracker = trackers?.find((item: any) => item.id === comment.tracker_id);
+      const profile = profiles?.find((item: any) => item.id === tracker?.user_id);
+      return { ...comment, community_name: profile?.nickname || comment.community_name,
+        avatar_url: profile?.avatar_url || null };
+    }) }, { status: 200 });
   } catch (error) {
     console.error('Error in GET comments:', error);
     return NextResponse.json(
@@ -87,7 +99,7 @@ export async function POST(
       );
     }
 
-    const communityName = tracker.community_name_custom || tracker.community_name;
+    const communityName = user.nickname || tracker.community_name_custom || tracker.community_name;
 
     const comment = await createComment(
       (await params).id,
@@ -106,7 +118,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { comment, message: 'Comentário adicionado!' },
+      { comment: { ...comment, community_name: communityName, avatar_url: user.avatarUrl }, message: 'Comentário adicionado!' },
       { status: 201 }
     );
   } catch (error) {

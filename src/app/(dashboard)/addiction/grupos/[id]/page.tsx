@@ -10,10 +10,10 @@ interface GroupData {
   group: { id: string; name: string; description: string | null; group_type: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
   membership: { role: string; status: string };
   pending?: boolean;
-  members?: { user_profile_id: string; nickname: string | null; role: string; status: string }[];
-  posts?: { id: string; nickname: string; content: string; created_at: string }[];
+  members?: { user_profile_id: string; nickname: string | null; avatar_url: string | null; role: string; status: string }[];
+  posts?: { id: string; nickname: string; avatar_url: string | null; content: string; created_at: string }[];
   own_trackers?: { id: string; name: string; shared: boolean; show_streak: boolean }[];
-  ranking?: { nickname: string; days: number }[];
+  ranking?: { nickname: string; avatar_url: string | null; days: number }[];
 }
 
 export default function GrupoPage() {
@@ -66,7 +66,7 @@ export default function GrupoPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card><h2 className="mb-3 font-semibold">Membros</h2>
           <div className="space-y-2">{data.members?.map((member) => <div key={member.user_profile_id} className="flex items-center justify-between gap-2 border-b border-dark-700/40 py-2 text-sm">
-            <span>{member.nickname || 'Participante'} {member.role === 'owner' && '· responsável'} {member.status === 'pending' && '· aguardando'}</span>
+            <span className="flex items-center gap-2">{member.avatar_url && <img src={member.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />}{member.nickname || 'Participante'} {member.role === 'owner' && '· responsável'} {member.status === 'pending' && '· aguardando'}</span>
             {manager && member.status === 'pending' && <div className="flex gap-2"><Button size="sm" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'active' })} disabled={busy}>Aprovar</Button><Button size="sm" variant="danger" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'removed' })} disabled={busy}>Recusar</Button></div>}
           </div>)}</div>
         </Card>
@@ -81,7 +81,7 @@ export default function GrupoPage() {
       </div>
 
       {data.group.ranking_enabled && <Card><h2 className="mb-3 font-semibold">Ranking do grupo</h2>
-        {data.ranking?.length ? data.ranking.map((entry, index) => <p key={`${entry.nickname}-${index}`} className="border-b border-dark-700/40 py-2 text-sm">{index + 1}. {entry.nickname} · {entry.days} dias</p>) : <p className="text-sm text-dark-400">Ninguém compartilhou o contador ainda.</p>}
+        {data.ranking?.length ? data.ranking.map((entry, index) => <p key={`${entry.nickname}-${index}`} className="flex items-center gap-2 border-b border-dark-700/40 py-2 text-sm">{index + 1}. {entry.avatar_url && <img src={entry.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />} {entry.nickname} · {entry.days} dias</p>) : <p className="text-sm text-dark-400">Ninguém compartilhou o contador ainda.</p>}
       </Card>}
 
       <Card><h2 className="mb-3 font-semibold">Publicações do grupo</h2>
@@ -90,7 +90,7 @@ export default function GrupoPage() {
           <Button type="submit" disabled={busy || !content.trim()}>Publicar</Button>
         </form>
         <div className="space-y-3">{data.posts?.map((post) => <div key={post.id} className="rounded-lg border border-dark-700/50 p-3">
-          <p className="text-xs text-dark-400">{post.nickname} · {new Date(post.created_at).toLocaleDateString('pt-BR')}</p>
+          <p className="flex items-center gap-2 text-xs text-dark-400">{post.avatar_url && <img src={post.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />}{post.nickname} · {new Date(post.created_at).toLocaleDateString('pt-BR')}</p>
           <p className="mt-1 whitespace-pre-wrap text-sm">{post.content}</p>
         </div>)}</div>
       </Card>

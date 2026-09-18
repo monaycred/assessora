@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const { error: memberError } = await db.from('support_group_members').insert({
     group_id: group.id, user_profile_id: user.id, role: 'owner', status: 'active',
-    nickname: user.fullName.split(' ')[0],
+    nickname: user.nickname || user.fullName.split(' ')[0],
   });
   if (memberError) {
     await db.from('support_groups').delete().eq('id', group.id);

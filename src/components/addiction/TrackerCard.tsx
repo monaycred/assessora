@@ -143,7 +143,7 @@ export function TrackerCard({
         {/* Public Status */}
         {tracker.is_public && (
           <div className="bg-purple-50 p-3 rounded-md text-xs text-purple-700">
-            👁️ Você aparece na comunidade como <strong>{tracker.community_name_custom || tracker.community_name}</strong>
+            👁️ Seu progresso está visível na comunidade. Seu apelido e foto vêm do seu perfil.
           </div>
         )}
 

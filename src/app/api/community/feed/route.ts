@@ -32,15 +32,27 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
 
     const posts = await getCommunityFeed(type === 'all' ? null : type, limit);
+    const trackerIds = [...new Set(posts.map((post) => post.tracker_id))];
+    const { data: trackers } = trackerIds.length
+      ? await supabase.from('addiction_trackers').select('id, user_id').in('id', trackerIds)
+      : { data: [] };
+    const userIds = [...new Set((trackers || []).map((tracker: any) => tracker.user_id))];
+    const { data: profiles } = userIds.length
+      ? await supabase.from('user_profiles').select('id, nickname, avatar_url').in('id', userIds)
+      : { data: [] };
 
     // Enriquecer posts com reações e comentários
     const enriched = await Promise.all(
       posts.map(async (post) => {
         const reactions = await getPostReactions(post.id);
         const comments = await getPostComments(post.id);
+        const tracker = trackers?.find((item: any) => item.id === post.tracker_id);
+        const profile = profiles?.find((item: any) => item.id === tracker?.user_id);
 
         return {
           ...post,
+          community_name: profile?.nickname || post.community_name,
+          avatar_url: profile?.avatar_url || null,
           reactions,
           comment_count: comments.length,
           reactions_total: Object.values(reactions).reduce((a, b) => a + b, 0),
@@ -128,7 +140,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const communityName = tracker.community_name_custom || tracker.community_name;
+    const communityName = user.nickname || tracker.community_name_custom || tracker.community_name;
 
     const post = await createPost(
       tracker_id,

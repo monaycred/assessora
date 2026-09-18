@@ -14,6 +14,7 @@ interface FeedPost {
   content: string;
   post_type: 'victory' | 'challenge' | 'tip' | 'general';
   community_name: string;
+  avatar_url?: string | null;
   current_streak_days: number;
   reactions: Record<string, number>;
   comment_count: number;
@@ -102,6 +103,7 @@ export function CommunityFeed({
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
+                  {post.avatar_url && <img src={post.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />}
                   <p className="font-semibold text-gray-900">{post.community_name}</p>
                   <Badge variant="secondary" className="text-xs">
                     {post.current_streak_days}d

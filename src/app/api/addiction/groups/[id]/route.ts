@@ -29,7 +29,14 @@ export async function GET(_request: NextRequest, { params }: Context) {
   const isManager = membership.role === 'owner' || membership.role === 'moderator' || user.role === 'admin';
   const { data: allMembers } = await db.from('support_group_members').select('user_profile_id, role, status, nickname')
     .eq('group_id', id).in('status', isManager ? ['active', 'pending'] : ['active']);
-  const members = allMembers || [];
+  const memberIds = (allMembers || []).map((member: any) => member.user_profile_id);
+  const { data: publicProfiles } = memberIds.length
+    ? await db.from('user_profiles').select('id, nickname, avatar_url').in('id', memberIds)
+    : { data: [] };
+  const members = (allMembers || []).map((member: any) => {
+    const profile = publicProfiles?.find((item: any) => item.id === member.user_profile_id);
+    return { ...member, nickname: profile?.nickname || member.nickname, avatar_url: profile?.avatar_url || null };
+  });
   const activeMembers = members.filter((member: any) => member.status === 'active');
   const { data: posts } = await db.from('support_group_posts').select('id, author_profile_id, content, created_at')
     .eq('group_id', id).order('created_at', { ascending: false }).limit(50);
@@ -38,7 +45,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
   const { data: shares } = await db.from('support_group_shares').select('tracker_id, show_streak')
     .eq('group_id', id);
 
-  let ranking: { nickname: string; days: number }[] = [];
+  let ranking: { nickname: string; avatar_url: string | null; days: number }[] = [];
   const rankedTrackerIds = (shares || []).filter((share: any) => share.show_streak).map((share: any) => share.tracker_id);
   if (group.ranking_enabled && rankedTrackerIds.length) {
     const { data: trackers } = await db.from('addiction_trackers').select('id, user_id, started_at')
@@ -46,6 +53,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
     ranking = (trackers || []).filter((tracker: any) => activeMembers.some((member: any) => member.user_profile_id === tracker.user_id))
       .map((tracker: any) => ({
         nickname: activeMembers.find((member: any) => member.user_profile_id === tracker.user_id)?.nickname || 'Participante',
+        avatar_url: activeMembers.find((member: any) => member.user_profile_id === tracker.user_id)?.avatar_url || null,
         days: calculateDaysSince(tracker.started_at),
       })).sort((a: { days: number }, b: { days: number }) => b.days - a.days);
   }
@@ -56,6 +64,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
     members,
     posts: (posts || []).map((post: any) => ({ ...post,
       nickname: activeMembers.find((member: any) => member.user_profile_id === post.author_profile_id)?.nickname || 'Participante',
+      avatar_url: activeMembers.find((member: any) => member.user_profile_id === post.author_profile_id)?.avatar_url || null,
     })),
     own_trackers: (ownTrackers || []).map((tracker: any) => ({ ...tracker,
       shared: !!shares?.some((share: any) => share.tracker_id === tracker.id),

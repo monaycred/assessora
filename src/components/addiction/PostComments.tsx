@@ -13,13 +13,14 @@ interface PostCommentsProps {
   trackerId: string;
   initialComments?: CommunityComment[];
 }
+type DisplayComment = CommunityComment & { avatar_url?: string | null };
 
 export function PostComments({
   postId,
   trackerId,
   initialComments = [],
 }: PostCommentsProps) {
-  const [comments, setComments] = useState<CommunityComment[]>(initialComments);
+  const [comments, setComments] = useState<DisplayComment[]>(initialComments);
   const [loading, setLoading] = useState(false);
   const [fetchingComments, setFetchingComments] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -133,6 +134,7 @@ export function PostComments({
                   <div key={comment.id} className="bg-gray-50 p-2 rounded text-xs">
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
+                        {comment.avatar_url && <img src={comment.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />}
                         <span className="font-semibold">
                           {comment.community_name}
                         </span>

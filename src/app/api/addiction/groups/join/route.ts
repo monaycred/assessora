@@ -6,11 +6,8 @@ import { getAccessUser } from '@/lib/access';
 export async function POST(request: NextRequest) {
   const user = await getAccessUser('addiction');
   if (!user) return NextResponse.json({ error: 'Faça login com sua conta aprovada' }, { status: 401 });
-  const { token, nickname } = await request.json();
-  const displayName = String(nickname || '').trim();
-  if (displayName.length < 2 || displayName.length > 24) {
-    return NextResponse.json({ error: 'Escolha um apelido de 2 a 24 caracteres' }, { status: 400 });
-  }
+  const { token } = await request.json();
+  const displayName = user.nickname || user.fullName.split(' ')[0];
   if (typeof token !== 'string' || !/^[a-zA-Z0-9_-]{20,100}$/.test(token)) {
     return NextResponse.json({ error: 'Convite inválido' }, { status: 400 });
   }

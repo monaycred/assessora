@@ -12,6 +12,8 @@ export interface AccessUser {
   authUserId: string; // auth.users.id
   role: 'admin' | 'member';
   fullName: string;
+  nickname: string | null;
+  avatarUrl: string | null;
   phone: string | null;
 }
 
@@ -22,7 +24,7 @@ export async function getAccessUser(moduleKey?: ModuleKey): Promise<AccessUser |
 
   const db = createAdminClient();
   const { data: profile } = await db.from('user_profiles')
-    .select('id, user_id, role, is_active, full_name, phone')
+    .select('id, user_id, role, is_active, full_name, nickname, avatar_url, phone')
     .eq('user_id', user.id).maybeSingle();
   if (!profile?.is_active) return null;
 
@@ -40,6 +42,8 @@ export async function getAccessUser(moduleKey?: ModuleKey): Promise<AccessUser |
     authUserId: user.id,
     role: profile.role,
     fullName: profile.full_name,
+    nickname: profile.nickname,
+    avatarUrl: profile.avatar_url,
     phone: profile.phone,
   };
 }
