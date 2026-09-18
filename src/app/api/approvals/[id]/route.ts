@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendTextMessage } from "@/lib/evolution/client";
+import { getAccessUser } from "@/lib/access";
 
 // PATCH /api/approvals/[id]
 export async function PATCH(
@@ -8,6 +9,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const admin = await getAccessUser();
+    if (admin?.role !== "admin") return NextResponse.json({ error: "Sem permissão" }, { status: 403 });
     const { id } = await params;
     const { action } = await req.json();
 
@@ -35,10 +38,11 @@ export async function PATCH(
 
       if (isExistingUser && userId) {
         // Cadastro veio do site — só ativa o perfil, não manda invite
-        await supabase
+        const { error: activateError } = await supabase
           .from("user_profiles")
           .update({ is_active: true, phone: contact.phone_number || undefined })
           .eq("user_id", userId);
+        if (activateError) return NextResponse.json({ error: activateError.message }, { status: 500 });
       } else {
         // Cadastro veio do WhatsApp — cria/convida usuário
         const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
@@ -69,27 +73,52 @@ export async function PATCH(
           userId = inviteData?.user?.id ?? null;
         }
 
-        if (isExistingUser && userId) {
-          await supabase.from("user_profiles").update({ phone: contact.phone_number }).eq("user_id", userId);
-        }
+        if (!userId) return NextResponse.json({ error: "Não foi possível vincular a conta" }, { status: 500 });
+        const { data: existingProfile } = await supabase.from("user_profiles")
+          .select("id").eq("user_id", userId).maybeSingle();
+        const profileResult = existingProfile
+          ? await supabase.from("user_profiles").update({ is_active: true, phone: contact.phone_number }).eq("user_id", userId)
+          : await supabase.from("user_profiles").insert({
+              user_id: userId, full_name: contact.name, cpf: contact.cpf,
+              email: contact.email, phone: contact.phone_number,
+              role: "member", is_active: true,
+            });
+        if (profileResult.error) return NextResponse.json({ error: profileResult.error.message }, { status: 500 });
       }
 
       // Atualiza contato para aprovado
-      await supabase.from("contacts").update({
+      if (userId) {
+        const { data: profile } = await supabase.from("user_profiles")
+          .select("id").eq("user_id", userId).maybeSingle();
+        if (profile?.id) {
+          const { error: accessError } = await supabase.from("user_module_access").upsert({
+            user_profile_id: profile.id,
+            module_key: "addiction",
+            enabled: true,
+            source: "free",
+            updated_by: admin.id,
+          });
+          if (accessError) return NextResponse.json({ error: accessError.message }, { status: 500 });
+        }
+      }
+
+      const { error: contactError } = await supabase.from("contacts").update({
         status: "aprovado",
         user_id: userId || null,
         approved_at: new Date().toISOString(),
       }).eq("id", id);
+      if (contactError) return NextResponse.json({ error: contactError.message }, { status: 500 });
 
       // Mensagem WhatsApp
       const firstName = contact.name?.split(" ")[0] || "você";
       const whatsappMsg = contact.user_id
-        ? `✅ *${firstName}, sua conta foi aprovada!*\n\nAgora você pode acessar o painel e me chamar aqui pelo WhatsApp 😊\n\nExemplo: _Iasmin, me lembra de tomar remédio amanhã às 9h_`
+        ? `✅ *${firstName}, sua conta foi aprovada!*\n\nVocê já pode acessar gratuitamente o Controle de Vícios. Outros módulos ficam disponíveis após liberação pelo administrador.`
         : `✅ *Parabens, ${firstName}!*\n\nSua conta na Iasmin foi aprovada!\n\nVerifique seu email *${contact.email}* — enviamos um link para voce criar sua senha e acessar o painel.\n\nDepois de criar sua senha, pode me chamar aqui mesmo pelo WhatsApp 😊`;
 
       // Notifica pelo WhatsApp (só se tem telefone)
       if (contact.phone_number) {
-        await sendTextMessage(contact.phone_number, whatsappMsg, contact.instance_name);
+        try { await sendTextMessage(contact.phone_number, whatsappMsg, contact.instance_name); }
+        catch (notificationError) { console.error("[Approvals] Notificação falhou:", notificationError); }
       }
 
       // Log de auditoria

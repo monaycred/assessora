@@ -2,7 +2,8 @@
 // SUPABASE CLIENT - Addiction Tracker
 // ============================================================
 
-import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/server';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   AddictionTracker,
   AddictionEntry,
@@ -19,10 +20,7 @@ import {
 } from '@/types/addiction';
 import { generateRandomCity, milestonesToSeconds } from './utils';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+const supabase: SupabaseClient = createAdminClient();
 
 // ============================================================
 // TRACKERS
@@ -139,15 +137,8 @@ export async function updateTrackerStreak(
 export async function resetTracker(trackerId: string): Promise<boolean> {
   const tracker = await getTracker(trackerId);
   if (!tracker) return false;
-
-  // Criar reset record
-  await supabase.from('addiction_resets').insert({
-    tracker_id: trackerId,
-    streak_before: tracker.current_streak_days,
-  });
-
-  // Resetar streak
-  return updateTrackerStreak(trackerId, 0, tracker.best_streak_days);
+  const { data, error } = await supabase.rpc('reset_addiction_tracker', { p_tracker_id: trackerId });
+  return !error && data === true;
 }
 
 // ============================================================

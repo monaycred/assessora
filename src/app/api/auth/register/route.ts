@@ -9,9 +9,9 @@ export async function POST(req: NextRequest) {
     const { full_name, cpf, email, phone, password } = await req.json();
 
     // Validações
-    if (!full_name || !cpf || !email || !password) {
+    if (!full_name?.trim() || !cpf || !email?.trim() || !password || !/^55\d{10,11}$/.test(String(phone || ""))) {
       return NextResponse.json(
-        { error: "Campos obrigatórios: nome, CPF, email e senha" },
+        { error: "Preencha nome, CPF, e-mail, WhatsApp e senha válidos" },
         { status: 400 }
       );
     }
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Cria contato pendente de aprovação (aparece em Aprovações)
-    await supabase.from("contacts").insert({
+    const { error: contactError } = await supabase.from("contacts").insert({
       phone_number: phone || "",
       name: full_name,
       cpf,
@@ -96,6 +96,10 @@ export async function POST(req: NextRequest) {
       user_id: authData.user.id,
       onboarding_step: 6,
     });
+    if (contactError) {
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      return NextResponse.json({ error: "Erro ao enviar cadastro para aprovação" }, { status: 500 });
+    }
 
     // Registra log
     await supabase.from("audit_logs").insert({

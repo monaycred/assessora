@@ -1,3 +1,4 @@
+import { getAccessUser } from '@/lib/access';
 // ============================================================
 // API - Tracker Entries (Notas/Diário)
 // GET /api/addiction/trackers/[id]/entries
@@ -26,10 +27,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(
@@ -75,10 +74,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(

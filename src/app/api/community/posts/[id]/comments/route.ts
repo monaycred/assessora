@@ -1,3 +1,4 @@
+import { getAccessUser } from '@/lib/access';
 // ============================================================
 // API - Post Comments
 // GET /api/community/posts/[id]/comments
@@ -48,10 +49,8 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(

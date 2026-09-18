@@ -19,10 +19,27 @@ export default function AddictionTrackerPage() {
   const [trackers, setTrackers] = useState<AddictionTracker[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('meus-trackers');
+  const [checkins, setCheckins] = useState<Record<string, string>>({});
+  const [checkinError, setCheckinError] = useState('');
 
   useEffect(() => {
     fetchTrackers();
+    fetch('/api/addiction/checkins').then((response) => response.json()).then((data) => {
+      setCheckins(Object.fromEntries((data.checkins || []).map((item: { tracker_id: string; status: string }) => [item.tracker_id, item.status])));
+    }).catch(() => undefined);
   }, []);
+
+  const answerCheckin = async (trackerId: string, status: string) => {
+    setCheckinError('');
+    const response = await fetch('/api/addiction/checkins', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tracker_id: trackerId, status }),
+    });
+    const result = await response.json();
+    if (!response.ok) return setCheckinError(result.error || 'Não foi possível registrar sua resposta');
+    setCheckins((previous) => ({ ...previous, [trackerId]: status }));
+    if (status === 'lapse') fetchTrackers();
+  };
 
   const fetchTrackers = async () => {
     try {
@@ -54,6 +71,11 @@ export default function AddictionTrackerPage() {
           </Button>
         </Link>
       </div>
+      <Link href="/addiction/grupos" className="inline-flex rounded-md border border-green-500 px-4 py-2 text-sm text-green-700 hover:bg-green-50">
+        Meus grupos e desafios →
+      </Link>
+      <p className="text-sm text-gray-600">O check-in diário também chega pelo WhatsApp no horário configurado em cada rastreador. Sua resposta é privada.</p>
+      {checkinError && <p role="alert" className="text-sm text-red-600">{checkinError}</p>}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -77,6 +99,7 @@ export default function AddictionTrackerPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {trackers.map((tracker) => (
+                <div key={tracker.id} className="space-y-2">
                 <TrackerCard
                   key={tracker.id}
                   tracker={tracker}
@@ -88,6 +111,16 @@ export default function AddictionTrackerPage() {
                   }}
                   showActions={true}
                 />
+                {checkins[tracker.id] && checkins[tracker.id] !== 'pending' ? (
+                  <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">Resposta de hoje registrada: {checkins[tracker.id] === 'success' ? 'segui minha meta' : checkins[tracker.id] === 'lapse' ? 'não consegui hoje' : 'preciso de apoio'}.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2" aria-label={`Check-in de ${tracker.name}`}>
+                    <Button size="sm" onClick={() => answerCheckin(tracker.id, 'success')}>Hoje consegui</Button>
+                    <Button size="sm" variant="outline" onClick={() => answerCheckin(tracker.id, 'lapse')}>Hoje não consegui</Button>
+                    <Button size="sm" variant="outline" onClick={() => answerCheckin(tracker.id, 'support')}>Preciso de apoio</Button>
+                  </div>
+                )}
+                </div>
               ))}
             </div>
           )}

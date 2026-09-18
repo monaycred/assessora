@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { formatCPF, cleanCPF, validateCPF } from "@/lib/utils";
@@ -14,6 +14,12 @@ function LoginForm() {
   const supabase = createClient();
 
   const searchParams = useSearchParams();
+  const requestedNext = searchParams.get("next");
+  useEffect(() => {
+    if (requestedNext?.startsWith("/") && !requestedNext.startsWith("//")) {
+      localStorage.setItem("iasmin_pending_destination", requestedNext);
+    }
+  }, [requestedNext]);
   const [cpf, setCpf] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -68,7 +74,9 @@ function LoginForm() {
         return;
       }
 
-      router.push("/dashboard");
+      const destination = requestedNext || localStorage.getItem("iasmin_pending_destination");
+      localStorage.removeItem("iasmin_pending_destination");
+      router.push(destination?.startsWith("/") && !destination.startsWith("//") ? destination : "/dashboard");
       router.refresh();
     } catch {
       setError("Erro inesperado. Tente novamente.");
@@ -154,7 +162,7 @@ function LoginForm() {
 
           <div className="mt-5 text-center">
             <Link
-              href="/cadastro"
+              href={requestedNext ? `/cadastro?next=${encodeURIComponent(requestedNext)}` : "/cadastro"}
               className="text-sm text-dark-400 hover:text-primary-500 transition-colors"
             >
               Não tem conta?{" "}

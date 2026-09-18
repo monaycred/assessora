@@ -4,6 +4,7 @@ import { classifyMessage, classifyMessageWithImage } from "@/lib/ai/classifier";
 import { sendTextMessage } from "@/lib/evolution/client";
 import { estimateTokenCost, cleanWhatsAppNumber, parseAmount } from "@/lib/utils";
 import { AI_MODEL } from "@/lib/anthropic/client";
+import { processWhatsAppCheckin } from "@/lib/addiction/whatsapp-checkin";
 
 // Valida CPF (formato e dígitos verificadores)
 function validarCPF(cpf: string): boolean {
@@ -144,6 +145,11 @@ export async function POST(req: NextRequest) {
     // CASO 1: Contato APROVADO — responde com IA normalmente
     // ═══════════════════════════════════════════════════════════════════════
     if (contact?.status === "aprovado") {
+      const checkinResponse = await processWhatsAppCheckin(contact.user_id, messageContent);
+      if (checkinResponse) {
+        await sendTextMessage(fromNumber, checkinResponse, instanceName);
+        return NextResponse.json({ ok: true });
+      }
       await log(supabase, { instance_name: instanceName, from_number: fromNumber, event_type: "message", message_content: messageContent, result: "ai_processing" });
 
       const authUserId = contact.user_id; // auth.users.id
@@ -151,10 +157,24 @@ export async function POST(req: NextRequest) {
       // Busca o profile id (todas as tabelas referenciam user_profiles.id, não auth.users.id)
       const { data: userProfile } = await supabase
         .from("user_profiles")
-        .select("id")
+        .select("id, role, is_active")
         .eq("user_id", authUserId)
         .single();
+      if (!userProfile?.is_active) {
+        await sendTextMessage(fromNumber, "Seu cadastro ainda precisa de aprovação para usar a Iasmin.", instanceName);
+        return NextResponse.json({ ok: true });
+      }
       const userId = userProfile?.id ?? authUserId;
+
+      const { data: moduleRows } = await supabase.from("user_module_access")
+        .select("module_key, enabled, expires_at").eq("user_profile_id", userId);
+      const activeModules = new Set((moduleRows || []).filter((row: any) =>
+        row.enabled && (!row.expires_at || new Date(row.expires_at) > new Date())
+      ).map((row: any) => row.module_key));
+      if (userProfile.role !== "admin" && ![...activeModules].some((key) => key !== "addiction")) {
+        await sendTextMessage(fromNumber, "Seu acesso gratuito ao Controle de Vícios está ativo. Responda ao check-in diário com o código recebido. Para liberar outras funções da Iasmin, fale com o administrador.", instanceName);
+        return NextResponse.json({ ok: true });
+      }
 
       // Salva mensagem
       const { data: savedMessage } = await supabase.from("messages").insert({
@@ -211,6 +231,15 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(`[Webhook] intent="${classification.intent}" data=${JSON.stringify(classification.extracted_data)}`);
+      const intentModule: Record<string, string> = {
+        expense: "financeiro", close_account: "financeiro", reminder: "lembretes", event: "agenda",
+        shopping_list: "listas", wishlist: "desejos", trip: "lembretes", health: "lembretes", query: "lembretes",
+      };
+      const requiredModule = intentModule[classification.intent];
+      if (userProfile.role !== "admin" && requiredModule && !activeModules.has(requiredModule)) {
+        await sendTextMessage(fromNumber, "Essa função ainda não está liberada para sua conta. Peça a ativação ao administrador.", instanceName);
+        return NextResponse.json({ ok: true });
+      }
       let actionTaken = "unknown";
       let responseMessage = classification.response_message;
 

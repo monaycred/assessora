@@ -1,17 +1,20 @@
 import Header from "@/components/layout/Header";
 import { Card } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import ModuleAccessManager from "@/components/admin/ModuleAccessManager";
 import { formatDate, formatCPF } from "@/lib/utils";
 import { Users, Shield, User } from "lucide-react";
 
 export default async function UsuariosPage() {
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: users } = await supabase
     .from("user_profiles")
     .select("*")
     .order("created_at", { ascending: false });
+  const { data: accesses } = await supabase.from("user_module_access")
+    .select("user_profile_id, module_key, enabled, expires_at");
 
   return (
     <div>
@@ -49,6 +52,12 @@ export default async function UsuariosPage() {
                         <span className="text-dark-600">•</span>
                         <p className="text-xs text-dark-400">{u.email}</p>
                       </div>
+                      {u.role !== "admin" && <ModuleAccessManager
+                        profileId={u.id}
+                        initialEnabled={(accesses || [])
+                          .filter((a: any) => a.user_profile_id === u.id && a.enabled && (!a.expires_at || new Date(a.expires_at) > new Date()))
+                          .map((a: any) => a.module_key)}
+                      />}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">

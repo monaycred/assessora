@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendTextMessage } from "@/lib/evolution/client";
+import { dispatchDailyCheckins } from "@/lib/addiction/dispatch-checkins";
 
 // GET /api/cron/reminders
 // Chamado a cada minuto por cron externo (cron-job.org)
@@ -11,6 +12,9 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+  let checkins = { due: 0, sent: 0, failed: 0 };
+  try { checkins = await dispatchDailyCheckins(); }
+  catch (error) { console.error('[Cron/Reminders] Check-ins:', error); }
 
   // 1. Busca lembretes pendentes que já passaram do horário
   const { data: reminders, error } = await supabase
@@ -26,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (!reminders || reminders.length === 0) {
-    return NextResponse.json({ ok: true, fired: 0 });
+    return NextResponse.json({ ok: true, fired: 0, checkins });
   }
 
   let fired = 0;
@@ -78,5 +82,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ ok: true, fired, failed });
+  return NextResponse.json({ ok: true, fired, failed, checkins });
 }

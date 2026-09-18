@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { deletePost } from '@/lib/addiction/database';
+import { getAccessUser } from '@/lib/access';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -22,23 +23,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const user = await getAccessUser();
+    if (user?.role !== 'admin') {
       return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
+        { error: 'Sem permissão' },
+        { status: 403 }
       );
     }
-
-    // TODO: Verificar se é admin
-    // const userProfile = await getUserProfile(user.id);
-    // if (userProfile.role !== 'admin') {
-    //   return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
-    // }
 
     const body = await request.json();
     const { action } = body;

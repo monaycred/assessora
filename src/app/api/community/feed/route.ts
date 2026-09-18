@@ -1,3 +1,4 @@
+import { getAccessUser } from '@/lib/access';
 // ============================================================
 // API - Community Feed
 // GET /api/community/feed
@@ -64,10 +65,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(

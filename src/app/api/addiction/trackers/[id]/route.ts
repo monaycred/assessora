@@ -1,3 +1,4 @@
+import { getAccessUser } from '@/lib/access';
 // ============================================================
 // API - Tracker Details
 // GET /api/addiction/trackers/[id]
@@ -29,10 +30,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(
@@ -96,10 +95,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(
@@ -156,10 +153,8 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const user = await getAccessUser('addiction');
+    const authError = !user;
 
     if (authError || !user) {
       return NextResponse.json(

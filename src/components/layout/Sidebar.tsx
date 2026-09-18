@@ -36,6 +36,7 @@ type NavItem =
       href: string;
       icon: React.ComponentType<{ className?: string }>;
       adminOnly?: boolean;
+      moduleKey?: string;
     };
 
 const navigation: NavItem[] = [
@@ -44,17 +45,17 @@ const navigation: NavItem[] = [
   { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle, adminOnly: true },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
-  { name: "Controle de Vícios", href: "/addiction", icon: Target },
-  { name: "Financeiro", href: "/financeiro", icon: DollarSign },
-  { name: "Lembretes", href: "/lembretes", icon: Bell },
-  { name: "Agenda", href: "/agenda", icon: Calendar },
-  { name: "Projetos", href: "/projetos", icon: FolderKanban },
-  { name: "Documentos", href: "/documentos", icon: FileText },
-  { name: "Listas", href: "/listas", icon: ShoppingCart },
-  { name: "Desejos", href: "/desejos", icon: Heart },
-  { name: "Viagens", href: "/viagens", icon: Plane },
+  { name: "Controle de Vícios", href: "/addiction", icon: Target, moduleKey: "addiction" },
+  { name: "Financeiro", href: "/financeiro", icon: DollarSign, moduleKey: "financeiro" },
+  { name: "Lembretes", href: "/lembretes", icon: Bell, moduleKey: "lembretes" },
+  { name: "Agenda", href: "/agenda", icon: Calendar, moduleKey: "agenda" },
+  { name: "Projetos", href: "/projetos", icon: FolderKanban, moduleKey: "projetos" },
+  { name: "Documentos", href: "/documentos", icon: FileText, moduleKey: "documentos" },
+  { name: "Listas", href: "/listas", icon: ShoppingCart, moduleKey: "listas" },
+  { name: "Desejos", href: "/desejos", icon: Heart, moduleKey: "desejos" },
+  { name: "Viagens", href: "/viagens", icon: Plane, moduleKey: "viagens" },
   { type: "divider", label: "SISTEMA" },
-  { name: "Integrações", href: "/integracoes", icon: Puzzle },
+  { name: "Integrações", href: "/integracoes", icon: Puzzle, moduleKey: "integracoes" },
   { name: "IA Config", href: "/ia-config", icon: Brain, adminOnly: true },
   { name: "Tokens IA", href: "/tokens", icon: Cpu, adminOnly: true },
   { name: "Logs", href: "/logs", icon: ScrollText, adminOnly: true },
@@ -66,6 +67,7 @@ export default function Sidebar() {
   const router = useRouter();
   const supabase = createClient();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [enabledModules, setEnabledModules] = useState<string[]>([]);
 
   useEffect(() => {
     async function checkRole() {
@@ -74,11 +76,18 @@ export default function Sidebar() {
 
       const { data: profile } = await supabase
         .from("user_profiles")
-        .select("role")
+        .select("id, role")
         .eq("user_id", user.id)
         .single();
 
       setIsAdmin(profile?.role === "admin");
+      if (profile?.id) {
+        const { data: access } = await supabase.from("user_module_access")
+          .select("module_key, enabled, expires_at").eq("user_profile_id", profile.id);
+        setEnabledModules((access || [])
+          .filter((a: any) => a.enabled && (!a.expires_at || new Date(a.expires_at) > new Date()))
+          .map((a: any) => a.module_key));
+      }
     }
     checkRole();
   }, [supabase]);
@@ -93,6 +102,8 @@ export default function Sidebar() {
   const visibleNavigation = navigation.filter((item) => {
     if ("type" in item) return true; // keep dividers for now; we'll prune below
     if (item.adminOnly && !isAdmin) return false;
+    if (item.moduleKey && !isAdmin && !enabledModules.includes(item.moduleKey)) return false;
+    if (item.href === "/dashboard" && !isAdmin && !enabledModules.some((key) => key !== "addiction")) return false;
     return true;
   });
 
