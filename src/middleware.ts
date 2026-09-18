@@ -86,7 +86,7 @@ export async function middleware(request: NextRequest) {
       ["/integracoes", "integracoes"],
     ];
     const match = modulePaths.find(([path]) => pathname === path || pathname.startsWith(path.endsWith("/") ? path : path + "/"));
-    if (match && profile.role !== "admin") {
+    if (match && match[1] !== "addiction" && profile.role !== "admin") {
       const { data: access } = await supabase.from("user_module_access")
         .select("enabled, expires_at")
         .eq("user_profile_id", profile.id).eq("module_key", match[1]).maybeSingle();

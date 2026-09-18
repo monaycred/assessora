@@ -102,7 +102,7 @@ export default function Sidebar() {
   const visibleNavigation = navigation.filter((item) => {
     if ("type" in item) return true; // keep dividers for now; we'll prune below
     if (item.adminOnly && !isAdmin) return false;
-    if (item.moduleKey && !isAdmin && !enabledModules.includes(item.moduleKey)) return false;
+    if (item.moduleKey && item.moduleKey !== "addiction" && !isAdmin && !enabledModules.includes(item.moduleKey)) return false;
     if (item.href === "/dashboard" && !isAdmin && !enabledModules.some((key) => key !== "addiction")) return false;
     return true;
   });

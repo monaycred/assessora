@@ -28,7 +28,7 @@ export async function getAccessUser(moduleKey?: ModuleKey): Promise<AccessUser |
     .eq('user_id', user.id).maybeSingle();
   if (!profile?.is_active) return null;
 
-  if (moduleKey && profile.role !== 'admin') {
+  if (moduleKey && moduleKey !== 'addiction' && profile.role !== 'admin') {
     const { data: access } = await db.from('user_module_access')
       .select('enabled, expires_at')
       .eq('user_profile_id', profile.id).eq('module_key', moduleKey).maybeSingle();

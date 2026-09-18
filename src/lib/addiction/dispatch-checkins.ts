@@ -23,8 +23,6 @@ export async function dispatchDailyCheckins(now = new Date()) {
   if (!profileIds.length) return { due: 0, sent: 0, failed: 0 };
   const { data: profiles } = await db.from('user_profiles').select('id, user_id, role, is_active')
     .in('id', profileIds);
-  const { data: entitlements } = await db.from('user_module_access').select('user_profile_id, enabled, expires_at')
-    .in('user_profile_id', profileIds).eq('module_key', 'addiction');
   const authIds = (profiles || []).map((profile: any) => profile.user_id);
   const { data: contacts } = authIds.length
     ? await db.from('contacts').select('user_id, phone_number, instance_name').in('user_id', authIds).eq('status', 'aprovado')
@@ -34,8 +32,7 @@ export async function dispatchDailyCheckins(now = new Date()) {
 
   for (const tracker of due) {
     const profile = profiles?.find((item: any) => item.id === tracker.user_id);
-    const access = entitlements?.find((item: any) => item.user_profile_id === tracker.user_id);
-    if (!profile?.is_active || (profile.role !== 'admin' && (!access?.enabled || (access.expires_at && new Date(access.expires_at) <= now)))) continue;
+    if (!profile?.is_active) continue;
     const contact = contacts?.find((item: any) => item.user_id === profile.user_id);
     if (!contact?.phone_number) continue;
 

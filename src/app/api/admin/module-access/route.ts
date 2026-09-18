@@ -10,6 +10,9 @@ export async function PATCH(request: NextRequest) {
   if (!user_profile_id || !MODULE_KEYS.includes(module_key) || typeof enabled !== 'boolean') {
     return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
   }
+  if (module_key === 'addiction') {
+    return NextResponse.json({ error: 'Controle de Vícios é gratuito para toda conta aprovada' }, { status: 400 });
+  }
   if (expires_at && Number.isNaN(Date.parse(expires_at))) {
     return NextResponse.json({ error: 'Validade inválida' }, { status: 400 });
   }
@@ -24,7 +27,7 @@ export async function PATCH(request: NextRequest) {
     user_profile_id,
     module_key,
     enabled,
-    source: module_key === 'addiction' ? 'free' : 'admin',
+    source: 'admin',
     expires_at: expires_at || null,
     updated_at: new Date().toISOString(),
     updated_by: admin.id,
