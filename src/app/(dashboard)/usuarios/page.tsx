@@ -4,6 +4,7 @@ import Badge from "@/components/ui/Badge";
 import { createAdminClient } from "@/lib/supabase/server";
 import ModuleAccessManager from "@/components/admin/ModuleAccessManager";
 import UserRoleManager from "@/components/admin/UserRoleManager";
+import UserAccessManager from "@/components/admin/UserAccessManager";
 import { getAccessUser } from "@/lib/access";
 import { redirect } from "next/navigation";
 import { formatCPF } from "@/lib/utils";
@@ -72,6 +73,7 @@ export default async function UsuariosPage() {
                     <Badge variant={u.is_active ? "success" : "danger"} dot>
                       {u.is_active ? "Ativo" : "Inativo"}
                     </Badge>
+                    <UserAccessManager profileId={u.id} currentAdminId={admin.id} initialActive={u.is_active} />
                   </div>
                 </div>
               ))}

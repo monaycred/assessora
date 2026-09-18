@@ -160,6 +160,12 @@ function LoginForm() {
             </Button>
           </form>
 
+          <div className="mt-4 text-center">
+            <Link href="/esqueci-senha" className="text-sm text-primary-500 hover:underline">
+              Esqueceu sua senha?
+            </Link>
+          </div>
+
           <div className="mt-5 text-center">
             <Link
               href={requestedNext ? `/cadastro?next=${encodeURIComponent(requestedNext)}` : "/cadastro"}
