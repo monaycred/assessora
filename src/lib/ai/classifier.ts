@@ -1,5 +1,5 @@
 import { anthropic, AI_MODEL, AI_MODEL_VISION } from "@/lib/anthropic/client";
-import { openai, OPENAI_MODEL_DEFAULT } from "@/lib/openai/client";
+import { getOpenAIClient, OPENAI_MODEL_DEFAULT } from "@/lib/openai/client";
 import { createAdminClient } from "@/lib/supabase/server";
 import type { AIClassification } from "@/types";
 
@@ -120,7 +120,7 @@ async function classifyWithAnthropic(userContent: string, systemPrompt: string, 
 
 // ── Classifica via OpenAI ──────────────────────────────────────────────────
 async function classifyWithOpenAI(userContent: string, systemPrompt: string, model: string): Promise<string> {
-  const response = await openai.chat.completions.create({
+  const response = await getOpenAIClient().chat.completions.create({
     model: model || OPENAI_MODEL_DEFAULT,
     max_tokens: 600,
     response_format: { type: "json_object" },
@@ -228,7 +228,7 @@ export async function generateFinancialSummary(data: {
   const userMsg = `Gere um resumo das despesas de ${data.period}:\n${JSON.stringify(data.expenses, null, 2)}`;
 
   if (config.provider === "openai") {
-    const response = await openai.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: config.model || OPENAI_MODEL_DEFAULT,
       max_tokens: 500,
       messages: [{ role: "system", content: systemMsg }, { role: "user", content: userMsg }],
