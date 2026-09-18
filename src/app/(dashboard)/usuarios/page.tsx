@@ -3,10 +3,14 @@ import { Card } from "@/components/ui/Card";
 import Badge from "@/components/ui/Badge";
 import { createAdminClient } from "@/lib/supabase/server";
 import ModuleAccessManager from "@/components/admin/ModuleAccessManager";
+import { getAccessUser } from "@/lib/access";
+import { redirect } from "next/navigation";
 import { formatDate, formatCPF } from "@/lib/utils";
 import { Users, Shield, User } from "lucide-react";
 
 export default async function UsuariosPage() {
+  const admin = await getAccessUser();
+  if (admin?.role !== "admin") redirect("/addiction");
   const supabase = createAdminClient();
 
   const { data: users } = await supabase
