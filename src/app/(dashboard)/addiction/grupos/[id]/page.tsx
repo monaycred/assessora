@@ -5,9 +5,10 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { CircleCheck, Clock3, HeartHandshake, Link2, Users } from 'lucide-react';
 
 interface GroupData {
-  group: { id: string; name: string; description: string | null; group_type: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
+  group: { id: string; name: string; description: string | null; group_type: string; join_policy: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
   membership: { role: string; status: string };
   pending?: boolean;
   members?: { user_profile_id: string; nickname: string | null; avatar_url: string | null; role: string; status: string }[];
@@ -46,31 +47,40 @@ export default function GrupoPage() {
     finally { setBusy(false); }
   }
 
-  if (!data) return <div className="p-6 text-dark-300"><Link href="/addiction/grupos" className="text-primary-500">← Grupos</Link><p className="mt-4">{error || 'Carregando...'}</p></div>;
-  const manager = data.membership.role === 'owner' || data.membership.role === 'moderator';
-  return <div className="space-y-6 p-6">
-    <div><Link href="/addiction/grupos" className="text-sm text-primary-500">← Meus grupos</Link>
-      <h1 className="mt-3 text-3xl font-bold">{data.group.name}</h1>
-      <p className="text-sm text-dark-400">{data.group.group_type === 'club' ? 'Grupo contínuo' : `Desafio de ${data.group.starts_on} até ${data.group.ends_on}`}</p>
-      {data.group.description && <p className="mt-2 text-dark-300">{data.group.description}</p>}
-    </div>
-    {error && <p className="rounded-lg border border-red-500/40 p-3 text-sm text-red-400">{error}</p>}
-    {data.pending ? <Card><p>Sua entrada aguarda aprovação do responsável pelo grupo.</p></Card> : <>
-      {manager && <Card className="space-y-3">
-        <h2 className="font-semibold">Convidar pessoas</h2>
-        <p className="text-sm text-dark-400">O convite vale por 30 dias. Cada pessoa precisa do cadastro completo e aprovação da Iasmin.</p>
-        <Button onClick={() => act({ action: 'invite' })} disabled={busy}>Gerar link</Button>
-        {invite && <div className="flex flex-wrap gap-2"><input readOnly value={invite} className="min-w-0 flex-1 rounded-lg border border-dark-700 bg-dark-900 p-2 text-xs" /><Button variant="secondary" onClick={() => navigator.clipboard.writeText(invite)}>Copiar</Button></div>}
+  if (!data) return <div className="p-4 sm:p-6 text-slate-700"><Link href="/addiction/grupos" className="font-semibold text-emerald-700">← Grupos</Link><p className="mt-4">{error || 'Carregando...'}</p></div>;
+  const manager = ['owner', 'moderator', 'admin'].includes(data.membership.role);
+  const pendingMembers = data.members?.filter((member) => member.status === 'pending') || [];
+  const activeMembers = data.members?.filter((member) => member.status === 'active') || [];
+  const dateLabel = data.group.group_type === 'club' ? 'Grupo contínuo' :
+    data.group.starts_on && data.group.ends_on ? `Desafio de ${new Date(`${data.group.starts_on}T12:00:00`).toLocaleDateString('pt-BR')} até ${new Date(`${data.group.ends_on}T12:00:00`).toLocaleDateString('pt-BR')}` : 'Desafio com prazo';
+  return <div className="mx-auto max-w-6xl space-y-5 p-4 pb-12 sm:p-6">
+    <Link href="/addiction/grupos" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">← Meus grupos</Link>
+    <header className="rounded-3xl bg-gradient-to-br from-teal-600 via-emerald-600 to-blue-700 p-5 text-white shadow-lg sm:p-8">
+      <div className="flex items-start gap-3"><div className="rounded-2xl bg-white/20 p-3"><HeartHandshake className="h-6 w-6" /></div><div className="min-w-0"><p className="text-sm font-medium text-white/90">{dateLabel}</p><h1 className="mt-1 break-words text-2xl font-bold sm:text-3xl">{data.group.name}</h1>{data.group.description && <p className="mt-2 text-sm leading-6 text-white/90">{data.group.description}</p>}</div></div>
+    </header>
+    {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+    {data.pending ? <Card className="border-blue-300 bg-blue-50 p-5 sm:p-6"><div className="flex items-start gap-3"><Clock3 className="mt-1 h-6 w-6 shrink-0 text-blue-700" /><div><h2 className="text-lg font-bold text-blue-950">Seu pedido foi enviado</h2><p className="mt-1 text-sm leading-6 text-blue-900">O responsável precisa aprovar sua entrada. Assim que aprovar, você poderá ver as pessoas e publicações deste grupo.</p><p className="mt-3 text-sm text-blue-800">Você já tem cadastro aprovado na Iasmin. Esta é apenas a aprovação para entrar neste grupo.</p></div></div></Card> : <>
+      {manager && <Card className={`space-y-4 shadow-sm ${pendingMembers.length ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+        <div className="flex items-center gap-2"><Clock3 className={`h-5 w-5 ${pendingMembers.length ? 'text-amber-700' : 'text-slate-600'}`} /><h2 className="text-lg font-bold text-slate-900">Pedidos para entrar {pendingMembers.length > 0 && `(${pendingMembers.length})`}</h2></div>
+        {pendingMembers.length ? <div className="space-y-3">{pendingMembers.map((member) => <div key={member.user_profile_id} className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">{member.avatar_url ? <img src={member.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 font-bold text-amber-900">{(member.nickname || 'P')[0]}</div>}<div><p className="font-bold text-slate-900">{member.nickname || 'Participante'}</p><p className="text-sm text-slate-600">Usou seu convite e aguarda sua decisão</p></div></div>
+          <div className="grid grid-cols-2 gap-2 sm:flex"><Button onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'active' })} disabled={busy}>Aprovar</Button><Button variant="danger" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'removed' })} disabled={busy} className="text-red-700">Recusar</Button></div>
+        </div>)}</div> : <p className="text-sm text-slate-600">Nenhum pedido pendente. Quando alguém aceitar um convite com aprovação, aparecerá aqui.</p>}
+      </Card>}
+      {manager && <Card className="space-y-3 border-emerald-200 bg-emerald-50/60 shadow-sm">
+        <div className="flex items-center gap-2"><Link2 className="h-5 w-5 text-emerald-700" /><h2 className="text-lg font-bold text-slate-900">Convidar pessoas</h2></div>
+        <p className="text-sm leading-6 text-slate-700">O convite vale por 30 dias. Cada pessoa precisa de cadastro completo e aprovado na Iasmin. {data.group.join_policy === 'approval' ? 'Neste grupo, você aprova cada pedido de entrada.' : 'Neste grupo, quem usa o link entra imediatamente.'}</p>
+        <Button onClick={() => act({ action: 'invite' })} disabled={busy} className="w-full sm:w-auto">Gerar link de convite</Button>
+        {invite && <div className="flex flex-col gap-2 sm:flex-row"><input aria-label="Link de convite" readOnly value={invite} className="min-w-0 flex-1 rounded-lg border border-emerald-300 bg-white p-3 text-xs text-slate-800" /><Button variant="secondary" onClick={() => navigator.clipboard.writeText(invite)}>Copiar link</Button></div>}
       </Card>}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card><h2 className="mb-3 font-semibold">Membros</h2>
-          <div className="space-y-2">{data.members?.map((member) => <div key={member.user_profile_id} className="flex items-center justify-between gap-2 border-b border-dark-700/40 py-2 text-sm">
-            <span className="flex items-center gap-2">{member.avatar_url && <img src={member.avatar_url} alt="" className="h-7 w-7 rounded-full object-cover" />}{member.nickname || 'Participante'} {member.role === 'owner' && '· responsável'} {member.status === 'pending' && '· aguardando'}</span>
-            {manager && member.status === 'pending' && <div className="flex gap-2"><Button size="sm" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'active' })} disabled={busy}>Aprovar</Button><Button size="sm" variant="danger" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'removed' })} disabled={busy}>Recusar</Button></div>}
+        <Card className="border-blue-200 bg-blue-50/50"><h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><Users className="h-5 w-5 text-blue-700" />Membros ({activeMembers.length})</h2>
+          <div className="space-y-2">{activeMembers.map((member) => <div key={member.user_profile_id} className="flex items-center gap-2 border-b border-blue-100 py-2 text-sm text-slate-800">
+            {member.avatar_url && <img src={member.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />}{member.nickname || 'Participante'} {member.role === 'owner' && <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-900">Responsável</span>}
           </div>)}</div>
         </Card>
-        <Card><h2 className="mb-3 font-semibold">Meu progresso no grupo</h2>
+        <Card className="border-purple-200 bg-purple-50/50"><h2 className="mb-3 text-lg font-bold text-slate-900">Meu progresso no grupo</h2>
           <p className="mb-3 text-xs text-dark-400">O diário permanece privado. Compartilhe apenas o contador que escolher.</p>
           {data.own_trackers?.map((tracker) => <div key={tracker.id} className="border-b border-dark-700/40 py-2 text-sm">
             <p className="font-medium">{tracker.name}</p>
@@ -84,7 +94,7 @@ export default function GrupoPage() {
         {data.ranking?.length ? data.ranking.map((entry, index) => <p key={`${entry.nickname}-${index}`} className="flex items-center gap-2 border-b border-dark-700/40 py-2 text-sm">{index + 1}. {entry.avatar_url && <img src={entry.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />} {entry.nickname} · {entry.days} dias</p>) : <p className="text-sm text-dark-400">Ninguém compartilhou o contador ainda.</p>}
       </Card>}
 
-      <Card><h2 className="mb-3 font-semibold">Publicações do grupo</h2>
+      <Card className="border-slate-200 bg-white"><h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><CircleCheck className="h-5 w-5 text-emerald-700" />Publicações do grupo</h2>
         <form onSubmit={(event) => { event.preventDefault(); act({ action: 'post', content }); }} className="mb-5 space-y-2">
           <textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={500} placeholder="Compartilhe uma vitória ou peça apoio" className="w-full rounded-lg border border-dark-700 bg-dark-900 p-3 text-sm" rows={3} />
           <Button type="submit" disabled={busy || !content.trim()}>Publicar</Button>

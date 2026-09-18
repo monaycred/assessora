@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 interface Contact {
   id: string
@@ -45,12 +46,20 @@ export default function AprovacoesPage() {
   const [loading, setLoading] = useState(true)
   const [processando, setProcessando] = useState<string | null>(null)
   const [tab, setTab] = useState<'aguardando' | 'aprovado' | 'bloqueado' | 'onboarding'>('aguardando')
+  const [groupPending, setGroupPending] = useState(0)
 
   async function carregar() {
     setLoading(true)
     const res = await fetch('/api/contacts')
     const data = await res.json()
     setContacts(Array.isArray(data) ? data : [])
+    try {
+      const groupResponse = await fetch('/api/addiction/groups')
+      if (groupResponse.ok) {
+        const groupData = await groupResponse.json()
+        setGroupPending((groupData.groups || []).reduce((total: number, group: { pending_count?: number }) => total + (group.pending_count || 0), 0))
+      }
+    } catch { /* A lista de contatos continua disponível se a consulta dos grupos falhar. */ }
     setLoading(false)
   }
 
@@ -91,20 +100,24 @@ export default function AprovacoesPage() {
 
   return (
     <div className="h-full overflow-auto bg-white">
-      <div className="border-b border-[#ebebeb] px-6 py-4">
-        <h1 className="text-[18px] font-semibold text-gray-900">Aprovacoes</h1>
+      <div className="border-b border-[#ebebeb] px-4 py-4 sm:px-6">
+        <h1 className="text-xl font-semibold text-gray-900">Aprovações</h1>
         <p className="text-[12px] text-gray-500 mt-1">
-          Contatos que fizeram pre-cadastro via WhatsApp.
+          Aqui ficam os pré-cadastros via WhatsApp. Pedidos para entrar em grupos ficam dentro de cada grupo.
         </p>
       </div>
 
+      <div className="px-4 pt-4 sm:px-6"><Link href="/addiction/grupos" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-950 hover:bg-amber-100">
+        <span className="font-semibold">Pedidos para entrar em grupos</span><span className="text-sm">{groupPending > 0 ? `${groupPending} aguardando aprovação` : 'Abrir grupos'} →</span>
+      </Link></div>
+
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-[#ebebeb] px-6">
+      <div className="flex gap-0 overflow-x-auto border-b border-[#ebebeb] px-4 sm:px-6">
         {tabList.map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key as any)}
-            className={`px-4 py-3 text-[13px] font-medium border-b-2 transition-colors ${
+            className={`shrink-0 px-4 py-3 text-[13px] font-medium border-b-2 transition-colors ${
               tab === t.key
                 ? 'border-[#E8621A] text-[#E8621A]'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -120,7 +133,7 @@ export default function AprovacoesPage() {
         ))}
       </div>
 
-      <div className="p-6">
+      <div className="p-4 sm:p-6">
         {loading ? (
           <p className="text-[13px] text-gray-400">Carregando...</p>
         ) : listaFiltrada.length === 0 ? (
@@ -131,7 +144,7 @@ export default function AprovacoesPage() {
           <div className="grid gap-3">
             {listaFiltrada.map(contact => (
               <div key={contact.id} className="border border-[#e5e7eb] rounded-lg bg-white p-4">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col items-start justify-between gap-4 sm:flex-row">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="text-[14px] font-semibold text-gray-900">
@@ -143,7 +156,7 @@ export default function AprovacoesPage() {
                       <span className="text-[10px] text-gray-400">{tempoAtras(contact.created_at)}</span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                    <div className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
                       <p className="text-[12px] text-gray-500">
                         <span className="text-gray-400">Tel:</span> {formatPhone(contact.phone_number)}
                       </p>
@@ -187,18 +200,18 @@ export default function AprovacoesPage() {
 
                   {/* Botoes de acao */}
                   {contact.status === 'aguardando_aprovacao' && (
-                    <div className="flex flex-col gap-2 flex-shrink-0">
+                    <div className="flex w-full gap-2 sm:w-auto sm:flex-col flex-shrink-0">
                       <button
                         onClick={() => acao(contact.id, 'approve')}
                         disabled={processando === contact.id}
-                        className="px-4 py-2 rounded bg-[#16803A] text-dark-100 text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
+                        className="flex-1 px-4 py-2 rounded bg-[#16803A] text-white text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
                       >
                         {processando === contact.id ? 'Aguarde...' : 'Aprovar'}
                       </button>
                       <button
                         onClick={() => acao(contact.id, 'reject')}
                         disabled={processando === contact.id}
-                        className="px-4 py-2 rounded border border-[#fecdca] text-[#b42318] text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
+                        className="flex-1 px-4 py-2 rounded border border-[#fecdca] text-[#b42318] text-[12px] font-medium disabled:opacity-60 whitespace-nowrap"
                       >
                         Recusar
                       </button>

@@ -24,6 +24,8 @@ import {
   Brain,
   FolderKanban,
   Target,
+  Menu,
+  X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -68,6 +70,9 @@ export default function Sidebar() {
   const supabase = createClient();
   const [isAdmin, setIsAdmin] = useState(false);
   const [enabledModules, setEnabledModules] = useState<string[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => { setMenuOpen(false); }, [pathname]);
 
   useEffect(() => {
     async function checkRole() {
@@ -115,13 +120,18 @@ export default function Sidebar() {
     return true;
   });
 
-  return (
-    <aside className="fixed left-0 top-0 h-full w-60 bg-dark-950 border-r border-dark-700 flex flex-col z-40">
+  return <>
+    <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:hidden">
+      <Link href="/addiction" className="flex items-center gap-2 font-bold text-slate-900"><span className="rounded-lg bg-emerald-100 p-2 text-emerald-700"><Sparkles className="h-5 w-5" /></span>Iasmin</Link>
+      <button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 p-2 text-slate-800"><Menu className="h-6 w-6" /></button>
+    </div>
+    {menuOpen && <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 md:hidden" />}
+    <aside className={cn("fixed left-0 top-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white shadow-xl transition-transform md:z-40 md:w-60 md:translate-x-0 md:shadow-none", menuOpen ? "translate-x-0" : "-translate-x-full")}>
       {/* Logo */}
-      <div className="px-5 py-5 border-b border-dark-700">
+      <div className="flex items-center justify-between px-5 py-5 border-b border-dark-700">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary-500/10 border border-primary-500/30 flex items-center justify-center">
-            <Sparkles className="w-4 h-4 text-primary-500" />
+            <Sparkles className="w-4 h-4 text-emerald-700" />
           </div>
           <div>
             <p className="text-sm font-bold text-dark-100 leading-tight">Iasmin</p>
@@ -130,6 +140,7 @@ export default function Sidebar() {
             </p>
           </div>
         </div>
+        <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 text-slate-700 md:hidden"><X className="h-5 w-5" /></button>
       </div>
 
       {/* Nav */}
@@ -138,7 +149,7 @@ export default function Sidebar() {
           if ("type" in item && item.type === "divider") {
             return (
               <div key={index} className="px-2 pt-4 pb-1">
-                <p className="text-[9px] font-semibold text-dark-600 tracking-widest uppercase">
+                <p className="text-[10px] font-semibold text-slate-500 tracking-widest uppercase">
                   {item.label}
                 </p>
               </div>
@@ -150,7 +161,7 @@ export default function Sidebar() {
             href: string;
             icon: React.ComponentType<{ className?: string }>;
           };
-          const isActive = pathname === navItem.href;
+          const isActive = pathname === navItem.href || (navItem.href === '/addiction' && pathname.startsWith('/addiction/'));
 
           return (
             <Link
@@ -159,14 +170,14 @@ export default function Sidebar() {
               className={cn(
                 "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all duration-150 group mb-0.5",
                 isActive
-                  ? "bg-primary-500/10 text-primary-500 border border-primary-500/20"
+                  ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
                   : "text-dark-400 hover:text-dark-200 hover:bg-dark-800/60"
               )}
             >
               <navItem.icon
                 className={cn(
                   "w-4 h-4 transition-colors",
-                  isActive ? "text-primary-500" : "text-dark-500 group-hover:text-dark-200"
+                  isActive ? "text-emerald-700" : "text-dark-500 group-hover:text-dark-200"
                 )}
               />
               <span className="font-medium">{navItem.name}</span>
@@ -186,5 +197,5 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
-  );
+  </>;
 }

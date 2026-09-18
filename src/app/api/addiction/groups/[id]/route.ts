@@ -19,14 +19,14 @@ export async function GET(_request: NextRequest, { params }: Context) {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const { id } = await params;
   const { db, group, membership } = await contextFor(id, user.id);
-  if (!group || !membership || membership.status === 'removed') {
+  if (!group || ((!membership || membership.status === 'removed') && user.role !== 'admin')) {
     return NextResponse.json({ error: 'Grupo não encontrado' }, { status: 404 });
   }
-  if (membership.status === 'pending') {
-    return NextResponse.json({ group: { id: group.id, name: group.name }, membership, pending: true });
+  if (membership?.status === 'pending' && user.role !== 'admin') {
+    return NextResponse.json({ group, membership, pending: true });
   }
 
-  const isManager = membership.role === 'owner' || membership.role === 'moderator' || user.role === 'admin';
+  const isManager = membership?.role === 'owner' || membership?.role === 'moderator' || user.role === 'admin';
   const { data: allMembers } = await db.from('support_group_members').select('user_profile_id, role, status, nickname')
     .eq('group_id', id).in('status', isManager ? ['active', 'pending'] : ['active']);
   const memberIds = (allMembers || []).map((member: any) => member.user_profile_id);
@@ -60,7 +60,7 @@ export async function GET(_request: NextRequest, { params }: Context) {
 
   return NextResponse.json({
     group,
-    membership,
+    membership: user.role === 'admin' && membership?.role !== 'owner' ? { role: 'admin', status: 'active' } : membership,
     members,
     posts: (posts || []).map((post: any) => ({ ...post,
       nickname: activeMembers.find((member: any) => member.user_profile_id === post.author_profile_id)?.nickname || 'Participante',
@@ -79,11 +79,11 @@ export async function POST(request: NextRequest, { params }: Context) {
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
   const { id } = await params;
   const { db, group, membership } = await contextFor(id, user.id);
-  if (!group || membership?.status !== 'active') {
+  if (!group || (membership?.status !== 'active' && user.role !== 'admin')) {
     return NextResponse.json({ error: 'Sem permissão no grupo' }, { status: 403 });
   }
   const body = await request.json();
-  const isManager = membership.role === 'owner' || membership.role === 'moderator' || user.role === 'admin';
+  const isManager = membership?.role === 'owner' || membership?.role === 'moderator' || user.role === 'admin';
 
   if (body.action === 'post') {
     const content = String(body.content || '').trim();
