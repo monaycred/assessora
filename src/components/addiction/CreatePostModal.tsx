@@ -1,17 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import Button from '@/components/ui/Button';
+import Textarea from '@/components/ui/Textarea';
+import Label from '@/components/ui/Label';
+import Modal from '@/components/ui/Modal';
 import { Loader2, Plus } from 'lucide-react';
 
 interface CreatePostModalProps {
@@ -66,20 +59,13 @@ export function CreatePostModal({ trackerId, onSuccess }: CreatePostModalProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Post
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Compartilhe com a comunidade</DialogTitle>
-          <DialogDescription>
-            Inspire outras pessoas com sua história
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Button onClick={() => setOpen(true)}>
+        <Plus className="h-4 w-4 mr-2" />
+        Novo Post
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Compartilhe com a comunidade">
+        <p className="mb-4 text-sm text-dark-300">Inspire outras pessoas com sua história</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Tipo de post */}
@@ -90,7 +76,7 @@ export function CreatePostModal({ trackerId, onSuccess }: CreatePostModalProps) 
                 <Button
                   key={pt.type}
                   type="button"
-                  variant={postType === pt.type ? 'default' : 'outline'}
+                  variant={postType === pt.type ? 'primary' : 'outline'}
                   onClick={() => setPostType(pt.type as any)}
                   className="justify-start"
                 >
@@ -141,7 +127,7 @@ export function CreatePostModal({ trackerId, onSuccess }: CreatePostModalProps) 
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    </>
   );
 }

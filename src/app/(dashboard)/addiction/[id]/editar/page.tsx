@@ -1,21 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { AddictionTracker } from '@/types/addiction';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ArrowLeft, Loader2, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { isValidCommunityName, milestonesToDays } from '@/lib/addiction/utils';
 
-interface EditTrackerPageProps {
-  params: { id: string };
-}
-
-export default function EditTrackerPage({ params }: EditTrackerPageProps) {
+export default function EditTrackerPage() {
+  const params = useParams<{ id: string }>();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

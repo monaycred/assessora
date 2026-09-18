@@ -19,7 +19,7 @@ const supabase = createClient(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -54,7 +54,7 @@ export async function PATCH(
     const { data: report, error: reportError } = await supabase
       .from('community_reports')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', (await params).id)
       .single();
 
     if (reportError || !report) {
@@ -85,7 +85,7 @@ export async function PATCH(
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
         })
-        .eq('id', params.id);
+        .eq('id', (await params).id);
 
       if (updateError) throw updateError;
 
@@ -102,7 +102,7 @@ export async function PATCH(
           reviewed_by: user.id,
           reviewed_at: new Date().toISOString(),
         })
-        .eq('id', params.id);
+        .eq('id', (await params).id);
 
       if (updateError) throw updateError;
 

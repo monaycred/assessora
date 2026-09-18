@@ -6,8 +6,8 @@
 
 import { useEffect, useState } from 'react';
 import { AddictionTracker } from '@/types/addiction';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Button from '@/components/ui/Button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import { Plus } from 'lucide-react';
 import { TrackerCard } from '@/components/addiction/TrackerCard';
 import { CommunityRanking } from '@/components/addiction/CommunityRanking';

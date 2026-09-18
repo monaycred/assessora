@@ -24,7 +24,7 @@ const supabase = createClient(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -67,7 +67,7 @@ export async function POST(
       );
     }
 
-    const success = await addReaction(params.id, tracker_id, reaction_type);
+    const success = await addReaction((await params).id, tracker_id, reaction_type);
 
     if (!success) {
       return NextResponse.json(
@@ -96,7 +96,7 @@ export async function POST(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -131,7 +131,7 @@ export async function DELETE(
       );
     }
 
-    const success = await removeReaction(params.id, tracker_id, reaction_type);
+    const success = await removeReaction((await params).id, tracker_id, reaction_type);
 
     if (!success) {
       return NextResponse.json(

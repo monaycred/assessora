@@ -26,7 +26,7 @@ const supabase = createClient(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -41,7 +41,7 @@ export async function GET(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -62,9 +62,9 @@ export async function GET(
     const currentDays = calculateDaysSince(tracker.started_at);
 
     // Buscar histórico
-    const milestones = await getTrackerMilestones(params.id);
-    const recentEntries = await getTrackerEntries(params.id, 10);
-    const resets = await getTrackerResets(params.id);
+    const milestones = await getTrackerMilestones((await params).id);
+    const recentEntries = await getTrackerEntries((await params).id, 10);
+    const resets = await getTrackerResets((await params).id);
 
     return NextResponse.json(
       {
@@ -93,7 +93,7 @@ export async function GET(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -108,7 +108,7 @@ export async function DELETE(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -128,7 +128,7 @@ export async function DELETE(
     const { error: deleteError } = await supabase
       .from('addiction_trackers')
       .delete()
-      .eq('id', params.id);
+      .eq('id', (await params).id);
 
     if (deleteError) {
       throw deleteError;
@@ -153,7 +153,7 @@ export async function DELETE(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -168,7 +168,7 @@ export async function PATCH(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -222,7 +222,7 @@ export async function PATCH(
       }
     }
 
-    const updated = await updateTracker(params.id, body);
+    const updated = await updateTracker((await params).id, body);
 
     if (!updated) {
       return NextResponse.json(

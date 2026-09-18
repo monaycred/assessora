@@ -1,17 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import Button from '@/components/ui/Button';
+import Textarea from '@/components/ui/Textarea';
+import Label from '@/components/ui/Label';
+import Modal from '@/components/ui/Modal';
 import { Flag, Loader2 } from 'lucide-react';
 
 interface ReportModalProps {
@@ -72,19 +65,12 @@ export function ReportModal({ postId, trackerId }: ReportModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" size="sm">
-          <Flag className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Denunciar Conteúdo</DialogTitle>
-          <DialogDescription>
-            Ajude-nos a manter a comunidade segura
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+        <Flag className="h-4 w-4" />
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title="Denunciar Conteúdo">
+        <p className="mb-4 text-sm text-dark-300">Ajude-nos a manter a comunidade segura</p>
 
         {success ? (
           <div className="text-center py-6">
@@ -150,7 +136,7 @@ export function ReportModal({ postId, trackerId }: ReportModalProps) {
               </Button>
               <Button
                 type="submit"
-                variant="destructive"
+                variant="danger"
                 className="flex-1"
                 disabled={!formData.reason || loading}
               >
@@ -160,7 +146,7 @@ export function ReportModal({ postId, trackerId }: ReportModalProps) {
             </div>
           </form>
         )}
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    </>
   );
 }

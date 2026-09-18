@@ -23,10 +23,10 @@ const supabase = createClient(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const comments = await getPostComments(params.id);
+    const comments = await getPostComments((await params).id);
 
     return NextResponse.json({ comments }, { status: 200 });
   } catch (error) {
@@ -45,7 +45,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -91,7 +91,7 @@ export async function POST(
     const communityName = tracker.community_name_custom || tracker.community_name;
 
     const comment = await createComment(
-      params.id,
+      (await params).id,
       tracker_id,
       communityName,
       tracker.current_streak_days,

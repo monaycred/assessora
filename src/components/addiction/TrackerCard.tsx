@@ -11,8 +11,8 @@ import {
   milestonesToDays,
   timeUntilNextMilestone,
 } from '@/lib/addiction/utils';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import Button from '@/components/ui/Button';
 import { MoreVertical, Edit2, Share2, Trash2 } from 'lucide-react';
 
 interface TrackerCardProps {

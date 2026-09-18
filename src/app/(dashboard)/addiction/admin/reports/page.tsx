@@ -6,9 +6,9 @@
 
 import { useEffect, useState } from 'react';
 import { CommunityReport } from '@/types/addiction';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Button from '@/components/ui/Button';
+import Badge from '@/components/ui/Badge';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Loader2, Trash2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 

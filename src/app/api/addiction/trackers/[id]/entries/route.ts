@@ -23,7 +23,7 @@ const supabase = createClient(
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -38,7 +38,7 @@ export async function GET(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -54,7 +54,7 @@ export async function GET(
       );
     }
 
-    const entries = await getTrackerEntries(params.id, 100);
+    const entries = await getTrackerEntries((await params).id, 100);
 
     return NextResponse.json({ entries }, { status: 200 });
   } catch (error) {
@@ -72,7 +72,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -87,7 +87,7 @@ export async function POST(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -136,7 +136,7 @@ export async function POST(
       );
     }
 
-    const entry = await createEntry(params.id, {
+    const entry = await createEntry((await params).id, {
       entry_date,
       notes,
       metrics,

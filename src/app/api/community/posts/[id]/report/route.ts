@@ -19,7 +19,7 @@ const supabase = createClient(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -64,7 +64,7 @@ export async function POST(
 
     const report = await reportContent(
       tracker_id,
-      params.id,
+      (await params).id,
       undefined,
       reason,
       reason_details

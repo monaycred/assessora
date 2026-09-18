@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { CommunityComment } from '@/types/addiction';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import { Card, CardContent } from '@/components/ui/Card';
+import Badge from '@/components/ui/Badge';
 import { Loader2, Send } from 'lucide-react';
 
 interface PostCommentsProps {

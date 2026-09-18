@@ -22,7 +22,7 @@ const supabase = createClient(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const {
@@ -37,7 +37,7 @@ export async function POST(
       );
     }
 
-    const tracker = await getTracker(params.id);
+    const tracker = await getTracker((await params).id);
 
     if (!tracker) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function POST(
     const body = await request.json();
     const { reason } = body;
 
-    const success = await resetTracker(params.id);
+    const success = await resetTracker((await params).id);
 
     if (!success) {
       return NextResponse.json(
@@ -66,7 +66,7 @@ export async function POST(
     }
 
     // Buscar tracker atualizado
-    const updated = await getTracker(params.id);
+    const updated = await getTracker((await params).id);
 
     return NextResponse.json(
       {

@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import Button from '@/components/ui/Button';
+import Input from '@/components/ui/Input';
+import Label from '@/components/ui/Label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -37,7 +37,7 @@ export default function NovoTrackerPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    goal_days: 30,
+    goal_days: 30 as number | null,
     custom_milestones: DEFAULT_MILESTONES.map((m) => m.days * 86400), // em segundos
   });
 

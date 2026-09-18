@@ -7,7 +7,10 @@ type BadgeVariant =
   | "warning"
   | "danger"
   | "info"
-  | "primary";
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "destructive";
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: BadgeVariant;
@@ -22,6 +25,9 @@ export default function Badge({
   ...props
 }: BadgeProps) {
   const variants: Record<BadgeVariant, string> = {
+    secondary: "bg-dark-700 text-dark-200",
+    outline: "bg-transparent text-dark-200 border border-dark-600",
+    destructive: "bg-red-500/10 text-red-400 border border-red-500/20",
     default: "bg-dark-700 text-dark-200",
     success: "bg-green-500/10 text-green-400 border border-green-500/20",
     warning: "bg-yellow-500/10 text-yellow-400 border border-yellow-500/20",
@@ -32,6 +38,9 @@ export default function Badge({
   };
 
   const dotColors: Record<BadgeVariant, string> = {
+    secondary: "bg-dark-400",
+    outline: "bg-dark-400",
+    destructive: "bg-red-400",
     default: "bg-dark-400",
     success: "bg-green-400",
     warning: "bg-yellow-400",
