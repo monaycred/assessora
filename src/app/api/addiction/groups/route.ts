@@ -42,12 +42,12 @@ export async function GET() {
     ? await db.from('support_group_members').select('group_id').in('group_id', managedIds).eq('status', 'pending')
     : { data: [] };
   const groupIds=(groups||[]).map((group:any)=>group.id);
-  const[{data:activeGroupMembers},{data:groupShares}]=await Promise.all([
-    groupIds.length?db.from('support_group_members').select('group_id').in('group_id',groupIds).eq('status','active'):Promise.resolve({data:[]}),
-    groupIds.length?db.from('support_group_shares').select('group_id,tracker_id').in('group_id',groupIds).eq('show_streak',true):Promise.resolve({data:[]}),
+  const{data:activeGroupMembers}=groupIds.length?await db.from('support_group_members').select('group_id,user_profile_id,nickname').in('group_id',groupIds).eq('status','active'):{data:[]};
+  const memberProfileIds=[...new Set((activeGroupMembers||[]).map((member:any)=>member.user_profile_id))];
+  const[{data:groupProfiles},{data:groupTrackers}]=await Promise.all([
+    memberProfileIds.length?db.from('user_profiles').select('id,nickname,avatar_url').in('id',memberProfileIds):Promise.resolve({data:[]}),
+    memberProfileIds.length?db.from('addiction_trackers').select('user_id,current_streak_days').in('user_id',memberProfileIds).eq('is_active',true):Promise.resolve({data:[]}),
   ]);
-  const groupTrackerIds=(groupShares||[]).map((share:any)=>share.tracker_id);
-  const{data:groupTrackers}=groupTrackerIds.length?await db.from('addiction_trackers').select('id,started_at').in('id',groupTrackerIds).eq('is_active',true):{data:[]};
   return NextResponse.json({ groups: (groups || []).map((group: any) => ({
     ...group,
     membership: user.role === 'admin'
@@ -55,7 +55,7 @@ export async function GET() {
       : memberships?.find((member: any) => member.group_id === group.id),
     pending_count: (pendingMembers || []).filter((member: any) => member.group_id === group.id).length,
     member_count:(activeGroupMembers||[]).filter((member:any)=>member.group_id===group.id).length,
-    best_days:Math.max(0,...(groupShares||[]).filter((share:any)=>share.group_id===group.id).map((share:any)=>{const tracker=(groupTrackers||[]).find((item:any)=>item.id===share.tracker_id);return tracker?Math.max(0,Math.floor((Date.now()-new Date(tracker.started_at).getTime())/86400000)):0})),
+    ...(()=>{const ranking=(activeGroupMembers||[]).filter((member:any)=>member.group_id===group.id).map((member:any)=>{const profile=(groupProfiles||[]).find((p:any)=>p.id===member.user_profile_id);const days=Math.max(0,...(groupTrackers||[]).filter((tracker:any)=>tracker.user_id===member.user_profile_id).map((tracker:any)=>tracker.current_streak_days||0));return{user_profile_id:member.user_profile_id,nickname:profile?.nickname||member.nickname||'Participante',avatar_url:profile?.avatar_url||null,days}}).sort((a:any,b:any)=>b.days-a.days);const ownIndex=ranking.findIndex((entry:any)=>entry.user_profile_id===user.id);return{best_days:ranking[0]?.days||0,ranking_preview:ranking.slice(0,3),leader:ranking[0]||null,own_days:ownIndex>=0?ranking[ownIndex].days:0,own_position:ownIndex>=0?ownIndex+1:null}})(),
   })), featured_groups: featuredGroups });
 }
 
