@@ -41,12 +41,21 @@ export async function GET() {
   const { data: pendingMembers } = managedIds.length
     ? await db.from('support_group_members').select('group_id').in('group_id', managedIds).eq('status', 'pending')
     : { data: [] };
+  const groupIds=(groups||[]).map((group:any)=>group.id);
+  const[{data:activeGroupMembers},{data:groupShares}]=await Promise.all([
+    groupIds.length?db.from('support_group_members').select('group_id').in('group_id',groupIds).eq('status','active'):Promise.resolve({data:[]}),
+    groupIds.length?db.from('support_group_shares').select('group_id,tracker_id').in('group_id',groupIds).eq('show_streak',true):Promise.resolve({data:[]}),
+  ]);
+  const groupTrackerIds=(groupShares||[]).map((share:any)=>share.tracker_id);
+  const{data:groupTrackers}=groupTrackerIds.length?await db.from('addiction_trackers').select('id,started_at').in('id',groupTrackerIds).eq('is_active',true):{data:[]};
   return NextResponse.json({ groups: (groups || []).map((group: any) => ({
     ...group,
     membership: user.role === 'admin'
       ? (memberships?.find((member: any) => member.group_id === group.id && member.role === 'owner') || { role: 'admin', status: 'active' })
       : memberships?.find((member: any) => member.group_id === group.id),
     pending_count: (pendingMembers || []).filter((member: any) => member.group_id === group.id).length,
+    member_count:(activeGroupMembers||[]).filter((member:any)=>member.group_id===group.id).length,
+    best_days:Math.max(0,...(groupShares||[]).filter((share:any)=>share.group_id===group.id).map((share:any)=>{const tracker=(groupTrackers||[]).find((item:any)=>item.id===share.tracker_id);return tracker?Math.max(0,Math.floor((Date.now()-new Date(tracker.started_at).getTime())/86400000)):0})),
   })), featured_groups: featuredGroups });
 }
 
