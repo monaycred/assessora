@@ -16,9 +16,11 @@ export async function POST(request: NextRequest) {
   const body = await request.json().catch(() => null);
   const title = String(body?.title || '').trim();
   if (title.length < 2 || title.length > 160) return NextResponse.json({ error: 'Informe o título da tarefa' }, { status: 400 });
+  const offsets=Array.isArray(body?.reminder_offsets_minutes)?body.reminder_offsets_minutes.map(Number).filter((n:number)=>[0,15,30,60,180,1440].includes(n)):[];
+  if(body?.whatsapp_enabled&&(!body?.due_at||!offsets.length))return NextResponse.json({error:'Escolha o prazo e quando avisar'},{status:400});
   const { data, error } = await createAdminClient().from('personal_tasks').insert({
     owner_profile_id: user.id, title, description: String(body?.description || '').trim() || null,
-    due_at: body?.due_at || null, priority: ['low','normal','high'].includes(body?.priority) ? body.priority : 'normal',
+    due_at: body?.due_at || null, priority: ['low','normal','high'].includes(body?.priority) ? body.priority : 'normal',whatsapp_enabled:body?.whatsapp_enabled===true,reminder_offsets_minutes:offsets,
   }).select('*').single();
   return error ? NextResponse.json({ error: 'Não foi possível criar a tarefa' }, { status: 500 }) : NextResponse.json({ task: data }, { status: 201 });
 }

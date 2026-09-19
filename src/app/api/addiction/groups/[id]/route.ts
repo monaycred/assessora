@@ -46,20 +46,15 @@ export async function GET(_request: NextRequest, { params }: Context) {
     : { data: [] };
   const { data: ownTrackers } = await db.from('addiction_trackers').select('id, name, started_at')
     .eq('user_id', user.id).eq('is_active', true);
-  const { data: shares } = await db.from('support_group_shares').select('tracker_id, show_streak')
-    .eq('group_id', id);
+  const { data: shares } = await db.from('support_group_shares').select('tracker_id, show_streak').eq('group_id', id);
 
   let ranking: { nickname: string; avatar_url: string | null; days: number }[] = [];
-  const rankedTrackerIds = (shares || []).filter((share: any) => share.show_streak).map((share: any) => share.tracker_id);
-  if (group.ranking_enabled && rankedTrackerIds.length) {
-    const { data: trackers } = await db.from('addiction_trackers').select('id, user_id, started_at')
-      .in('id', rankedTrackerIds);
-    ranking = (trackers || []).filter((tracker: any) => activeMembers.some((member: any) => member.user_profile_id === tracker.user_id))
-      .map((tracker: any) => ({
-        nickname: activeMembers.find((member: any) => member.user_profile_id === tracker.user_id)?.nickname || 'Participante',
-        avatar_url: activeMembers.find((member: any) => member.user_profile_id === tracker.user_id)?.avatar_url || null,
-        days: calculateDaysSince(tracker.started_at),
-      })).sort((a: { days: number }, b: { days: number }) => b.days - a.days);
+  if (group.ranking_enabled && memberIds.length) {
+    const { data: trackers } = await db.from('addiction_trackers').select('id, user_id, started_at').in('user_id', memberIds).eq('is_active', true);
+    ranking = activeMembers.map((member: any) => {
+      const days = (trackers || []).filter((tracker: any) => tracker.user_id === member.user_profile_id).map((tracker: any) => calculateDaysSince(tracker.started_at));
+      return { nickname: member.nickname || 'Participante', avatar_url: member.avatar_url || null, days: days.length ? Math.max(...days) : 0 };
+    }).sort((a: { days: number }, b: { days: number }) => b.days - a.days);
   }
 
   return NextResponse.json({

@@ -237,13 +237,14 @@ export default function ConfiguracoesPage() {
               <Input label="Data de nascimento" type="date" value={profile.birth_date || ''}
                 onChange={(e) => setProfile((p: any) => ({ ...p, birth_date: e.target.value }))} />
               <div className="space-y-3 rounded-lg border border-dark-700 p-4">
-                <p className="text-sm font-medium text-dark-200">Contato de emergência (privado)</p>
+                <p className="text-sm font-medium text-dark-200">Contato de apoio (privado)</p>
                 <Input label="Nome do contato" value={profile.emergency_name || ''} maxLength={120}
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_name: e.target.value }))} />
                 <Input label="WhatsApp do contato" value={profile.emergency_phone || ''} placeholder="(11) 9XXXX-XXXX"
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_phone: e.target.value }))} />
                 <Input label="Relação" value={profile.emergency_relationship || ''} maxLength={60} required
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_relationship: e.target.value }))} />
+                <Button type="button" variant="outline" onClick={async()=>{setError('');const response=await fetch('/api/support/contact',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'invite'})});const result=await response.json();if(!response.ok)setError(result.error);else setNotice('Convite enviado pelo WhatsApp. O contato precisa aceitar antes de receber pedidos de apoio.');}}>Enviar convite para este contato</Button>
               </div>
               <div className="grid gap-3 rounded-lg border border-dark-700 p-4 sm:grid-cols-2">
                 <p className="text-sm font-medium text-dark-200 sm:col-span-2">Endereço</p>

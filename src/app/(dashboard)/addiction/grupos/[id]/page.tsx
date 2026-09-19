@@ -82,12 +82,7 @@ export default function GrupoPage() {
           </div>)}</div>
         </Card>
         <Card className="border-purple-200 bg-purple-50/50"><h2 className="mb-3 text-lg font-bold text-slate-900">Meu progresso no grupo</h2>
-          <p className="mb-3 text-xs text-dark-400">O diário permanece privado. Compartilhe apenas o contador que escolher.</p>
-          {data.own_trackers?.map((tracker) => <div key={tracker.id} className="border-b border-dark-700/40 py-2 text-sm">
-            <p className="font-medium">{tracker.name}</p>
-            <label className="mr-4 inline-flex items-center gap-2"><input type="checkbox" checked={tracker.shared} disabled={busy} onChange={(event) => act({ action: 'share', tracker_id: tracker.id, enabled: event.target.checked, show_streak: false })} /> Participar</label>
-            {tracker.shared && <label className="inline-flex items-center gap-2"><input type="checkbox" checked={tracker.show_streak} disabled={busy} onChange={(event) => act({ action: 'share', tracker_id: tracker.id, enabled: true, show_streak: event.target.checked })} /> Mostrar dias no ranking</label>}
-          </div>)}
+          <p className="text-sm leading-6 text-slate-700">Ao participar, sua melhor sequência ativa entra automaticamente no ranking. Seu diário e suas anotações continuam privados.</p>
         </Card>
       </div>
 

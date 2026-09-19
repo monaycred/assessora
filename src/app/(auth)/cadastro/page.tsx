@@ -238,7 +238,7 @@ export default function CadastroPage() {
               <div className="grid grid-cols-[1fr_80px] gap-3"><Input label="Cidade" value={form.address_city} onChange={(e) => setForm((f) => ({ ...f, address_city: e.target.value }))} required /><Input label="UF" value={form.address_state} maxLength={2} onChange={(e) => setForm((f) => ({ ...f, address_state: e.target.value.toUpperCase() }))} required /></div>
             </div></div>
 
-            <div className="border-t border-slate-200 pt-4"><h3 className="mb-3 font-semibold text-slate-900">Contato de emergência</h3><div className="space-y-3">
+            <div className="border-t border-slate-200 pt-4"><h3 className="mb-1 font-semibold text-slate-900">Contato de apoio</h3><p className="mb-3 text-sm text-slate-600">Após sua aprovação, você poderá enviar um convite para esse contato aceitar receber pedidos de apoio.</p><div className="space-y-3">
               <Input label="Nome do contato" value={form.emergency_name} onChange={(e) => setForm((f) => ({ ...f, emergency_name: e.target.value }))} required />
               <Input label="WhatsApp do contato" value={form.emergency_phone} onChange={(e) => setForm((f) => ({ ...f, emergency_phone: e.target.value }))} required />
               <Input label="Qual é a relação?" value={form.emergency_relationship} onChange={(e) => setForm((f) => ({ ...f, emergency_relationship: e.target.value }))} placeholder="Ex.: mãe, esposo, amiga" required />

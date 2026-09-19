@@ -37,7 +37,7 @@ export async function middleware(request: NextRequest) {
 
   // Rotas publicas (sem autenticacao)
   const publicRoutes = [
-    "/login", "/cadastro", "/privacidade", "/esqueci-senha", "/redefinir-senha", "/api/auth/", "/api/webhook/",
+    "/login", "/cadastro", "/privacidade", "/apoio/confirmar", "/esqueci-senha", "/redefinir-senha", "/api/auth/", "/api/support/confirm", "/api/webhook/",
     "/api/addiction/cron/", "/api/cron/", "/api/tasks/morning-brief",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
