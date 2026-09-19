@@ -95,30 +95,31 @@ export default function GruposPage() {
   }
 
   const pendingTotal = groups.reduce((total, group) => total + (group.pending_count || 0), 0);
-  return <div className="mx-auto max-w-6xl space-y-6 p-4 pb-12 sm:p-6">
-    <Link href="/addiction" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">← Controle de Vícios</Link>
-    <header className="rounded-3xl bg-gradient-to-br from-emerald-600 via-teal-600 to-blue-700 p-5 text-white shadow-lg sm:p-8">
+  const discoverGroups = featuredGroups.filter((group) => !group.joined);
+  return <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 pb-12 sm:p-6">
+    <Link href="/addiction" className="order-0 inline-flex min-h-10 items-center text-sm font-semibold text-blue-700 hover:underline">← Jornadas</Link>
+    <header className="order-0 rounded-3xl bg-gradient-to-br from-blue-700 via-cyan-500 to-emerald-400 p-5 text-white shadow-xl sm:p-8">
       <div className="flex items-start gap-4"><div className="rounded-2xl bg-white/20 p-3"><HeartHandshake className="h-7 w-7" /></div>
         <div><h1 className="text-2xl font-bold sm:text-3xl">Grupos de apoio</h1>
           <p className="mt-2 max-w-xl text-sm leading-6 text-white/90 sm:text-base">Convide pessoas, acompanhe pedidos de entrada e compartilhe seu progresso no seu ritmo.</p>
         </div></div>
     </header>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
-    <section className="space-y-3">
-      <div><h2 className="text-xl font-bold text-slate-900">Encontre sua comunidade</h2><p className="text-sm text-slate-600">Entre em um grupo sugerido e caminhe com pessoas que têm a mesma meta.</p></div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{featuredGroups.map((group) => {const style=communityStyle[group.category_slug]||{emoji:'💪',card:'from-blue-50 to-indigo-100 border-blue-300',button:'bg-blue-600 hover:bg-blue-700'};return <article key={group.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br p-5 shadow-md transition hover:-translate-y-1 hover:shadow-xl ${style.card}`}>
+    <section className="order-3 space-y-3">
+      <div><h2 className="text-xl font-black text-slate-950">Descobrir novas comunidades</h2><p className="text-sm text-slate-600">Aqui aparecem somente comunidades das quais você ainda não participa.</p></div>
+      {discoverGroups.length === 0 ? <div className="rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 text-center text-sm font-semibold text-blue-900">Você já participa de todas as comunidades sugeridas 🎉</div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{discoverGroups.map((group) => {const style=communityStyle[group.category_slug]||{emoji:'💪',card:'from-blue-50 to-indigo-100 border-blue-300',button:'bg-blue-600 hover:bg-blue-700'};return <article key={group.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br p-5 shadow-md transition hover:-translate-y-1 hover:shadow-xl ${style.card}`}>
         <div className="absolute -right-4 -top-4 text-7xl opacity-15">{style.emoji}</div><div className="relative"><span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-2xl shadow-sm">{style.emoji}</span><h3 className="text-lg font-extrabold text-slate-950">{group.name}</h3><p className="mt-2 min-h-10 text-sm leading-5 text-slate-700">{group.description}</p>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-emerald-800">{group.member_count}</strong><span className="text-xs text-slate-600">participantes</span></div><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-blue-800">{group.best_days}</strong><span className="text-xs text-slate-600">melhor sequência</span></div></div>
         <p className="mt-3 text-sm font-medium text-emerald-900">Continue: você consegue.</p>
-        {group.joined ? <Link href={`/addiction/grupos/${group.id}`} className={`mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl text-sm font-bold text-white shadow ${style.button}`}>Abrir comunidade</Link> : <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className={`mt-3 w-full ${style.button}`}>Entrar nesta comunidade</Button>}</div>
-      </article>})}</div>
+        <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className={`mt-3 w-full ${style.button}`}>Entrar nesta comunidade</Button></div>
+      </article>})}</div>}
     </section>
     {pendingTotal > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm">
       <div className="flex items-center gap-3"><Clock3 className="h-6 w-6 text-amber-700" /><p className="font-semibold">{pendingTotal} {pendingTotal === 1 ? 'pessoa aguarda' : 'pessoas aguardam'} sua aprovação</p></div>
       <a href="#meus-grupos" className="font-semibold text-amber-800 underline">Ver pedidos ↓</a>
     </div>}
-    <section id="meus-grupos" className="scroll-mt-20 space-y-3">
-      <div className="flex items-center gap-2"><Users className="h-5 w-5 text-emerald-700" /><h2 className="text-xl font-bold text-slate-900">Meus grupos</h2></div>
+    <section id="meus-grupos" className="order-1 scroll-mt-20 space-y-3">
+      <div className="flex items-center gap-2"><Users className="h-6 w-6 text-blue-700" /><h2 className="text-xl font-black text-slate-950">Minhas comunidades</h2></div>
       {loadingGroups ? <p className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-600">Carregando seus grupos...</p> : groups.length === 0 ? <p className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">Você ainda não participa de um grupo. Crie um abaixo ou entre com um convite.</p> :
         <div className="grid gap-3 sm:grid-cols-2">{groups.map((group) => <Link key={group.id} href={`/addiction/grupos/${group.id}`} className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-400 hover:shadow-md">
           <div className="flex items-start justify-between gap-3"><h3 className="text-base font-bold text-slate-900 break-words">{group.name}</h3><ArrowRight className="h-5 w-5 shrink-0 text-emerald-700 transition group-hover:translate-x-1" /></div>
@@ -128,7 +129,7 @@ export default function GruposPage() {
           {group.description && <p className="mt-3 text-sm text-slate-600">{group.description}</p>}
         </Link>)}</div>}
     </section>
-    <div className="grid gap-5 lg:grid-cols-2">
+    <div className="order-4 grid gap-5 lg:grid-cols-2">
       <Card className="border-emerald-200 bg-emerald-50/60 shadow-sm"><div className="mb-5 flex items-center gap-3"><div className="rounded-xl bg-emerald-100 p-2 text-emerald-800"><Plus className="h-5 w-5" /></div><div><h2 className="text-lg font-bold text-slate-900">Criar um grupo</h2><p className="text-sm text-slate-600">Você escolhe como as pessoas entram.</p></div></div>
         <form onSubmit={createGroup} className="space-y-4">
           <Input label="Nome do grupo" value={name} onChange={(event) => setName(event.target.value)} required minLength={3} maxLength={80} />
