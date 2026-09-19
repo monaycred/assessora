@@ -29,6 +29,16 @@ const DEFAULT_MILESTONES = [
   { days: 60, label: '60 dias' },
 ];
 
+const JOURNEY_PRESETS = [
+  { emoji: '🍺', label: 'Álcool', name: 'Sem álcool', description: 'Quero viver com mais clareza e saúde.' },
+  { emoji: '🚭', label: 'Cigarro', name: 'Sem cigarro', description: 'Quero respirar melhor e recuperar minha saúde.' },
+  { emoji: '🌿', label: 'Maconha', name: 'Sem maconha', description: 'Quero mais presença, autonomia e constância.' },
+  { emoji: '📱', label: 'Instagram', name: 'Menos Instagram', description: 'Quero usar meu tempo com mais intenção.' },
+  { emoji: '🍬', label: 'Açúcar', name: 'Sem açúcar', description: 'Quero melhorar minha alimentação e energia.' },
+  { emoji: '🛡️', label: 'Pornografia', name: 'Sem pornografia', description: 'Quero retomar o controle dos meus hábitos.' },
+  { emoji: '🤝', label: 'Cocaína', name: 'Sem cocaína', description: 'Quero apoio e constância na recuperação.' },
+];
+
 export default function NovoTrackerPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -101,9 +111,9 @@ export default function NovoTrackerPage() {
             Voltar
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold">🎯 Novo Rastreador</h1>
+        <h1 className="text-3xl font-bold">🎯 Nova jornada</h1>
         <p className="text-gray-600 mt-2">
-          Crie um novo rastreador para acompanhar seu progresso
+          Escolha o que você quer superar e acompanhe seu progresso
         </p>
       </div>
 
@@ -114,15 +124,23 @@ export default function NovoTrackerPage() {
           <CardHeader>
             <CardTitle>Informações Básicas</CardTitle>
             <CardDescription>
-              Qual comportamento/vício você quer rastrear?
+              O que você quer superar?
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="name">Nome do Rastreador *</Label>
+              <p className="mb-3 text-sm font-semibold text-slate-800">Escolha uma sugestão ou escreva a sua:</p>
+              <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {JOURNEY_PRESETS.map((preset) => <button key={preset.label} type="button"
+                  onClick={() => setFormData({ ...formData, name: preset.name, description: preset.description })}
+                  className={`rounded-xl border p-3 text-left transition ${formData.name === preset.name ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200' : 'border-slate-200 bg-white hover:border-emerald-300'}`}>
+                  <span className="text-xl">{preset.emoji}</span><span className="mt-1 block text-sm font-semibold text-slate-900">{preset.label}</span>
+                </button>)}
+              </div>
+              <Label htmlFor="name">Nome da jornada *</Label>
               <Input
                 id="name"
-                placeholder="Ex: Sem beber, Sem fumar, Sem açúcar"
+                placeholder="Ex: Sem álcool, Sem cigarro, Sem açúcar"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
@@ -266,7 +284,7 @@ export default function NovoTrackerPage() {
             disabled={!formData.name.trim() || loading}
           >
             {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-            {loading ? 'Criando...' : 'Criar Rastreador'}
+            {loading ? 'Criando...' : 'Começar minha jornada'}
           </Button>
         </div>
       </form>

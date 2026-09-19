@@ -164,6 +164,11 @@ export default function ConfiguracoesPage() {
       <div className="p-6 space-y-5">
         {error && <p role="alert" className="rounded-lg border border-red-500/40 p-3 text-sm text-red-400">{error}</p>}
         {notice && <p role="status" className="rounded-lg border border-primary-500/40 p-3 text-sm text-primary-400">{notice}</p>}
+        {profile?.referral_code && <Card className="border-blue-200 bg-blue-50">
+          <h3 className="font-bold text-blue-950">Seu elo de indicação</h3>
+          <p className="mt-1 text-sm text-blue-800">Quem se cadastrar por este link ficará identificado como sua indicação e informará qual é o vínculo com você.</p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row"><input readOnly value={`https://assessora.gedaias.com/cadastro?ref=${profile.referral_code}`} className="min-w-0 flex-1 rounded-lg border border-blue-200 bg-white p-3 text-xs text-slate-800"/><Button type="button" onClick={() => navigator.clipboard.writeText(`https://assessora.gedaias.com/cadastro?ref=${profile.referral_code}`)}>Copiar convite</Button></div>
+        </Card>}
         {/* Perfil */}
         <Card>
           <div className="flex items-center gap-2 mb-5">

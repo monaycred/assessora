@@ -6,20 +6,25 @@ import { getAccessUser } from '@/lib/access';
 export async function POST(request: NextRequest) {
   const user = await getAccessUser('addiction');
   if (!user) return NextResponse.json({ error: 'Faça login com sua conta aprovada' }, { status: 401 });
-  const { token } = await request.json();
+  const { token, group_id } = await request.json();
   const displayName = user.nickname || user.fullName.split(' ')[0];
-  if (typeof token !== 'string' || !/^[a-zA-Z0-9_-]{20,100}$/.test(token)) {
+  if (!group_id && (typeof token !== 'string' || !/^[a-zA-Z0-9_-]{20,100}$/.test(token))) {
     return NextResponse.json({ error: 'Convite inválido' }, { status: 400 });
   }
   const db = createAdminClient();
-  const tokenHash = createHash('sha256').update(token).digest('hex');
-  const { data: invite } = await db.from('support_group_invites').select('*')
-    .eq('token_hash', tokenHash).maybeSingle();
-  if (!invite || invite.revoked_at || new Date(invite.expires_at) <= new Date() || invite.uses >= invite.max_uses) {
-    return NextResponse.json({ error: 'Convite expirado ou inválido' }, { status: 400 });
+  let invite: any = null;
+  if (!group_id) {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const result = await db.from('support_group_invites').select('*').eq('token_hash', tokenHash).maybeSingle();
+    invite = result.data;
+    if (!invite || invite.revoked_at || new Date(invite.expires_at) <= new Date() || invite.uses >= invite.max_uses) {
+      return NextResponse.json({ error: 'Convite expirado ou inválido' }, { status: 400 });
+    }
   }
-  const { data: group } = await db.from('support_groups').select('id, name, join_policy').eq('id', invite.group_id).single();
+  const { data: group } = await db.from('support_groups').select('id, name, join_policy, is_featured')
+    .eq('id', group_id || invite.group_id).single();
   if (!group) return NextResponse.json({ error: 'Grupo não encontrado' }, { status: 404 });
+  if (group_id && !group.is_featured) return NextResponse.json({ error: 'Este grupo exige convite' }, { status: 403 });
   const { data: existing } = await db.from('support_group_members').select('status')
     .eq('group_id', group.id).eq('user_profile_id', user.id).maybeSingle();
   if (existing?.status === 'active' || existing?.status === 'pending') {
@@ -30,6 +35,6 @@ export async function POST(request: NextRequest) {
     group_id: group.id, user_profile_id: user.id, role: 'member', status, nickname: displayName,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  await db.from('support_group_invites').update({ uses: invite.uses + 1 }).eq('id', invite.id);
+  if (invite) await db.from('support_group_invites').update({ uses: invite.uses + 1 }).eq('id', invite.id);
   return NextResponse.json({ group_id: group.id, group_name: group.name, status });
 }

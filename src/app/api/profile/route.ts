@@ -3,7 +3,7 @@ import { getAccessUser } from '@/lib/access';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { dateInSaoPaulo } from '@/lib/addiction/checkins';
 
-const fields = 'id, cpf, email, full_name, nickname, phone, avatar_url, birth_date, emergency_name, emergency_phone, emergency_relationship, role, briefing_enabled, briefing_time';
+const fields = 'id, cpf, email, full_name, nickname, phone, avatar_url, birth_date, emergency_name, emergency_phone, emergency_relationship, role, briefing_enabled, briefing_time, referral_code, cep, address_street, address_number, address_complement, address_neighborhood, address_city, address_state';
 
 function normalizePhone(value: unknown): string | null {
   if (typeof value !== 'string') return null;

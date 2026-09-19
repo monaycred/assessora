@@ -10,7 +10,27 @@ export async function GET() {
     .select('group_id, role, status').eq('user_profile_id', user.id).neq('status', 'removed');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const ids = (memberships || []).map((membership: any) => membership.group_id);
-  if (!ids.length && user.role !== 'admin') return NextResponse.json({ groups: [] });
+  const { data: featured } = await db.from('support_groups')
+    .select('id,name,description,category_slug').eq('is_featured', true).order('name');
+  const featuredIds = (featured || []).map((group: any) => group.id);
+  const { data: featuredMembers } = featuredIds.length ? await db.from('support_group_members')
+    .select('group_id,user_profile_id').in('group_id', featuredIds).eq('status', 'active') : { data: [] };
+  const { data: featuredShares } = featuredIds.length ? await db.from('support_group_shares')
+    .select('group_id,tracker_id').in('group_id', featuredIds).eq('show_streak', true) : { data: [] };
+  const sharedTrackerIds = (featuredShares || []).map((share: any) => share.tracker_id);
+  const { data: featuredTrackers } = sharedTrackerIds.length ? await db.from('addiction_trackers')
+    .select('id,started_at').in('id', sharedTrackerIds).eq('is_active', true) : { data: [] };
+  const featuredGroups = (featured || []).map((group: any) => {
+    const trackerIds = (featuredShares || []).filter((share: any) => share.group_id === group.id).map((share: any) => share.tracker_id);
+    const days = (featuredTrackers || []).filter((tracker: any) => trackerIds.includes(tracker.id))
+      .map((tracker: any) => Math.max(0, Math.floor((Date.now() - new Date(tracker.started_at).getTime()) / 86400000)));
+    return { ...group,
+      member_count: (featuredMembers || []).filter((member: any) => member.group_id === group.id).length,
+      best_days: days.length ? Math.max(...days) : 0,
+      joined: ids.includes(group.id),
+    };
+  });
+  if (!ids.length && user.role !== 'admin') return NextResponse.json({ groups: [], featured_groups: featuredGroups });
   let groupQuery = db.from('support_groups').select('*').order('created_at', { ascending: false });
   if (user.role !== 'admin') groupQuery = groupQuery.in('id', ids);
   const { data: groups, error: groupsError } = await groupQuery;
@@ -27,7 +47,7 @@ export async function GET() {
       ? (memberships?.find((member: any) => member.group_id === group.id && member.role === 'owner') || { role: 'admin', status: 'active' })
       : memberships?.find((member: any) => member.group_id === group.id),
     pending_count: (pendingMembers || []).filter((member: any) => member.group_id === group.id).length,
-  })) });
+  })), featured_groups: featuredGroups });
 }
 
 export async function POST(request: NextRequest) {

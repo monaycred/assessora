@@ -26,6 +26,8 @@ import {
   Target,
   Menu,
   X,
+  ListTodo,
+  KeyRound,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -48,6 +50,8 @@ const navigation: NavItem[] = [
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
   { name: "Controle de Vícios", href: "/addiction", icon: Target, moduleKey: "addiction" },
+  { name: "Tarefas", href: "/tarefas", icon: ListTodo },
+  { name: "Cofre familiar", href: "/cofre", icon: KeyRound },
   { name: "Financeiro", href: "/financeiro", icon: DollarSign, moduleKey: "financeiro" },
   { name: "Lembretes", href: "/lembretes", icon: Bell, moduleKey: "lembretes" },
   { name: "Agenda", href: "/agenda", icon: Calendar, moduleKey: "agenda" },

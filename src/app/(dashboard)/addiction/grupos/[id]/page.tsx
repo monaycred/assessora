@@ -5,14 +5,14 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
-import { CircleCheck, Clock3, HeartHandshake, Link2, Users } from 'lucide-react';
+import { CircleCheck, Clock3, HeartHandshake, Link2, MessageCircle, Trophy, Users } from 'lucide-react';
 
 interface GroupData {
   group: { id: string; name: string; description: string | null; group_type: string; join_policy: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
   membership: { role: string; status: string };
   pending?: boolean;
   members?: { user_profile_id: string; nickname: string | null; avatar_url: string | null; role: string; status: string }[];
-  posts?: { id: string; nickname: string; avatar_url: string | null; content: string; created_at: string }[];
+  posts?: { id: string; nickname: string; avatar_url: string | null; content: string; created_at: string; comments: { id: string; nickname: string; avatar_url: string | null; content: string; created_at: string }[] }[];
   own_trackers?: { id: string; name: string; shared: boolean; show_streak: boolean }[];
   ranking?: { nickname: string; avatar_url: string | null; days: number }[];
 }
@@ -24,6 +24,7 @@ export default function GrupoPage() {
   const [invite, setInvite] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [comments, setComments] = useState<Record<string, string>>({});
 
   async function load() {
     const response = await fetch(`/api/addiction/groups/${id}`);
@@ -90,18 +91,20 @@ export default function GrupoPage() {
         </Card>
       </div>
 
-      {data.group.ranking_enabled && <Card><h2 className="mb-3 font-semibold">Ranking do grupo</h2>
-        {data.ranking?.length ? data.ranking.map((entry, index) => <p key={`${entry.nickname}-${index}`} className="flex items-center gap-2 border-b border-dark-700/40 py-2 text-sm">{index + 1}. {entry.avatar_url && <img src={entry.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />} {entry.nickname} · {entry.days} dias</p>) : <p className="text-sm text-dark-400">Ninguém compartilhou o contador ainda.</p>}
+      {data.group.ranking_enabled && <Card className="border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50"><h2 className="mb-3 flex items-center gap-2 text-xl font-bold text-slate-900"><Trophy className="h-6 w-6 text-amber-600"/>Ranking do grupo</h2>
+        {data.ranking?.length ? data.ranking.map((entry, index) => <p key={`${entry.nickname}-${index}`} className="flex items-center gap-3 border-b border-amber-200 py-3 text-base font-semibold text-slate-900"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200 text-amber-950">{index + 1}</span>{entry.avatar_url && <img src={entry.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />}<span className="min-w-0 flex-1 truncate">{entry.nickname}</span><strong>{entry.days} dias</strong></p>) : <p className="text-sm text-slate-700">Ninguém compartilhou o contador ainda.</p>}
       </Card>}
 
       <Card className="border-slate-200 bg-white"><h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><CircleCheck className="h-5 w-5 text-emerald-700" />Publicações do grupo</h2>
         <form onSubmit={(event) => { event.preventDefault(); act({ action: 'post', content }); }} className="mb-5 space-y-2">
-          <textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={500} placeholder="Compartilhe uma vitória ou peça apoio" className="w-full rounded-lg border border-dark-700 bg-dark-900 p-3 text-sm" rows={3} />
+          <textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={500} placeholder="Compartilhe uma vitória ou peça apoio" className="w-full rounded-xl border border-slate-300 bg-white p-3 text-base text-slate-900" rows={3} />
           <Button type="submit" disabled={busy || !content.trim()}>Publicar</Button>
         </form>
-        <div className="space-y-3">{data.posts?.map((post) => <div key={post.id} className="rounded-lg border border-dark-700/50 p-3">
-          <p className="flex items-center gap-2 text-xs text-dark-400">{post.avatar_url && <img src={post.avatar_url} alt="" className="h-6 w-6 rounded-full object-cover" />}{post.nickname} · {new Date(post.created_at).toLocaleDateString('pt-BR')}</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm">{post.content}</p>
+        <div className="space-y-4">{data.posts?.map((post) => <div key={post.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <p className="flex items-center gap-2 text-sm font-bold text-slate-900">{post.avatar_url && <img src={post.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />}{post.nickname}<span className="font-normal text-slate-500">· {new Date(post.created_at).toLocaleDateString('pt-BR')}</span></p>
+          <p className="mt-3 whitespace-pre-wrap text-base leading-6 text-slate-800">{post.content}</p>
+          <div className="mt-4 space-y-2 border-t border-slate-200 pt-3">{post.comments?.map(comment=><div key={comment.id} className="rounded-xl bg-white p-3 text-sm text-slate-800"><strong className="text-slate-950">{comment.nickname}</strong><p className="mt-1">{comment.content}</p></div>)}</div>
+          <form className="mt-3 flex gap-2" onSubmit={async event=>{event.preventDefault();const value=(comments[post.id]||'').trim();if(!value)return;await act({action:'comment',post_id:post.id,content:value});setComments(current=>({...current,[post.id]:''}));}}><input aria-label="Escrever comentário" value={comments[post.id]||''} onChange={event=>setComments(current=>({...current,[post.id]:event.target.value}))} maxLength={300} placeholder="Comentar..." className="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900"/><Button type="submit" size="sm" disabled={busy||!(comments[post.id]||'').trim()} aria-label="Enviar comentário"><MessageCircle className="h-4 w-4"/></Button></form>
         </div>)}</div>
       </Card>
     </>}

@@ -14,6 +14,7 @@ import { CommunityRanking } from '@/components/addiction/CommunityRanking';
 import { CommunityFeed } from '@/components/addiction/CommunityFeed';
 import { CreatePostModal } from '@/components/addiction/CreatePostModal';
 import Link from 'next/link';
+import MotivationalQuote from '@/components/addiction/MotivationalQuote';
 
 export default function AddictionTrackerPage() {
   const [trackers, setTrackers] = useState<AddictionTracker[]>([]);
@@ -55,11 +56,12 @@ export default function AddictionTrackerPage() {
   };
 
   return (
-    <div className="flex-1 space-y-8">
+    <div className="mx-auto max-w-6xl flex-1 space-y-8 p-4 sm:p-6">
+      <MotivationalQuote />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">🎯 Controle de Vícios</h1>
+          <h1 className="text-3xl font-bold">🎯 Minhas jornadas</h1>
           <p className="text-gray-600 mt-1">
             Rastreie seu progresso na jornada de recuperação
           </p>
@@ -67,7 +69,7 @@ export default function AddictionTrackerPage() {
         <Link href="/addiction/novo">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Rastreador
+            Nova jornada
           </Button>
         </Link>
       </div>
@@ -77,10 +79,15 @@ export default function AddictionTrackerPage() {
       <p className="text-sm text-gray-600">O check-in diário também chega pelo WhatsApp no horário configurado em cada rastreador. Sua resposta é privada.</p>
       {checkinError && <p role="alert" className="text-sm text-red-600">{checkinError}</p>}
 
+      <section>
+        <div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-bold text-slate-900">🏆 Destaques da comunidade</h2><button type="button" onClick={() => setActiveTab('ranking')} className="text-sm font-semibold text-emerald-700">Ver ranking completo →</button></div>
+        <CommunityRanking limit={3} />
+      </section>
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="meus-trackers">Meus Trackers</TabsTrigger>
+        <TabsTrigger value="meus-trackers">Minhas jornadas</TabsTrigger>
           <TabsTrigger value="comunidade">Comunidade</TabsTrigger>
           <TabsTrigger value="ranking">Ranking</TabsTrigger>
         </TabsList>
@@ -91,9 +98,9 @@ export default function AddictionTrackerPage() {
             <div className="text-center py-8 text-gray-600">Carregando...</div>
           ) : trackers.length === 0 ? (
             <div className="text-center py-8 space-y-4">
-              <p className="text-gray-600">Você ainda não tem nenhum tracker</p>
+              <p className="text-gray-600">Você ainda não começou uma jornada</p>
               <Link href="/addiction/novo">
-                <Button>Criar Seu Primeiro Tracker</Button>
+                <Button>Começar minha primeira jornada</Button>
               </Link>
             </div>
           ) : (

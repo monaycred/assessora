@@ -40,6 +40,10 @@ export async function GET(_request: NextRequest, { params }: Context) {
   const activeMembers = members.filter((member: any) => member.status === 'active');
   const { data: posts } = await db.from('support_group_posts').select('id, author_profile_id, content, created_at')
     .eq('group_id', id).order('created_at', { ascending: false }).limit(50);
+  const postIds = (posts || []).map((post: any) => post.id);
+  const { data: comments } = postIds.length
+    ? await db.from('support_group_post_comments').select('id, post_id, author_profile_id, content, created_at').in('post_id', postIds).order('created_at')
+    : { data: [] };
   const { data: ownTrackers } = await db.from('addiction_trackers').select('id, name, started_at')
     .eq('user_id', user.id).eq('is_active', true);
   const { data: shares } = await db.from('support_group_shares').select('tracker_id, show_streak')
@@ -65,6 +69,11 @@ export async function GET(_request: NextRequest, { params }: Context) {
     posts: (posts || []).map((post: any) => ({ ...post,
       nickname: activeMembers.find((member: any) => member.user_profile_id === post.author_profile_id)?.nickname || 'Participante',
       avatar_url: activeMembers.find((member: any) => member.user_profile_id === post.author_profile_id)?.avatar_url || null,
+      comments: (comments || []).filter((comment: any) => comment.post_id === post.id).map((comment: any) => ({
+        ...comment,
+        nickname: activeMembers.find((member: any) => member.user_profile_id === comment.author_profile_id)?.nickname || 'Participante',
+        avatar_url: activeMembers.find((member: any) => member.user_profile_id === comment.author_profile_id)?.avatar_url || null,
+      })),
     })),
     own_trackers: (ownTrackers || []).map((tracker: any) => ({ ...tracker,
       shared: !!shares?.some((share: any) => share.tracker_id === tracker.id),
@@ -91,6 +100,15 @@ export async function POST(request: NextRequest, { params }: Context) {
     const { error } = await db.from('support_group_posts').insert({
       group_id: id, author_profile_id: user.id, content,
     });
+    return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true });
+  }
+
+  if (body.action === 'comment') {
+    const content = String(body.content || '').trim();
+    if (!content || content.length > 300) return NextResponse.json({ error: 'Comentário inválido' }, { status: 400 });
+    const { data: post } = await db.from('support_group_posts').select('id').eq('id', body.post_id).eq('group_id', id).maybeSingle();
+    if (!post) return NextResponse.json({ error: 'Publicação não encontrada' }, { status: 404 });
+    const { error } = await db.from('support_group_post_comments').insert({ post_id: post.id, author_profile_id: user.id, content });
     return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true });
   }
 

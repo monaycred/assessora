@@ -17,6 +17,8 @@ interface Contact {
   first_message?: string
   status: string
   onboarding_step: number
+  referrer_name?: string
+  referral_relationship?: string
 }
 
 function formatCPF(cpf?: string) {
@@ -180,6 +182,7 @@ export default function AprovacoesPage() {
                           "{contact.first_message.slice(0, 80)}{contact.first_message.length > 80 ? '...' : ''}"
                         </p>
                       )}
+                      {contact.referrer_name && <p className="col-span-2 mt-2 rounded-lg bg-blue-50 p-2 text-[12px] font-medium text-blue-900">Indicado por: {contact.referrer_name} · Elo: {contact.referral_relationship || 'não informado'}</p>}
                     </div>
 
                     {/* Barra de progresso do onboarding */}

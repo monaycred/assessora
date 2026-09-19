@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatCPF, cleanCPF, validateCPF } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -14,17 +14,33 @@ export default function CadastroPage() {
   const router = useRouter();
 
   const [form, setForm] = useState({
-    full_name: "",
+    full_name: "", nickname: "", birth_date: "",
     cpf: "",
     email: "",
     phone: "",
     password: "",
     confirm_password: "",
+    cep: "", address_street: "", address_number: "", address_complement: "",
+    address_neighborhood: "", address_city: "", address_state: "",
+    emergency_name: "", emergency_phone: "", emergency_relationship: "",
+    referral_code: "", referral_relationship: "",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  useEffect(() => { setForm((current) => ({ ...current, referral_code: new URLSearchParams(window.location.search).get('ref') || '' })); }, []);
+
+  const lookupCep = async () => {
+    const cep = form.cep.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (!data.erro) setForm((current) => ({ ...current, address_street: data.logradouro || '', address_neighborhood: data.bairro || '', address_city: data.localidade || '', address_state: data.uf || '' }));
+    } catch { /* A pessoa pode preencher o endereço manualmente. */ }
+  };
 
   const handleCPFChange = (value: string) => {
     const cleaned = cleanCPF(value);
@@ -68,6 +84,13 @@ export default function CadastroPage() {
       setError("Nome completo é obrigatório.");
       return;
     }
+    if (!form.nickname.trim() || !form.birth_date || !/^\d{8}$/.test(form.cep.replace(/\D/g, '')) ||
+      !form.address_street.trim() || !form.address_number.trim() || !form.address_neighborhood.trim() ||
+      !form.address_city.trim() || !form.address_state.trim() || !form.emergency_name.trim() ||
+      !form.emergency_phone.trim() || !form.emergency_relationship.trim()) {
+      setError('Preencha todos os dados obrigatórios.'); return;
+    }
+    if (form.referral_code && !form.referral_relationship) { setError('Informe seu vínculo com quem indicou.'); return; }
 
     if (!validateCPF(cleanCPF(form.cpf))) {
       setError("CPF inválido.");
@@ -116,6 +139,13 @@ export default function CadastroPage() {
           email: form.email,
           phone: phoneWithCountryCode,
           password: form.password,
+          nickname: form.nickname.trim(), birth_date: form.birth_date,
+          cep: form.cep.replace(/\D/g, ''), address_street: form.address_street.trim(),
+          address_number: form.address_number.trim(), address_complement: form.address_complement.trim(),
+          address_neighborhood: form.address_neighborhood.trim(), address_city: form.address_city.trim(), address_state: form.address_state.toUpperCase(),
+          emergency_name: form.emergency_name.trim(), emergency_phone: `55${form.emergency_phone.replace(/\D/g, '').replace(/^55/, '')}`,
+          emergency_relationship: form.emergency_relationship.trim(), referral_code: form.referral_code || null,
+          referral_relationship: form.referral_relationship || null,
         }),
       });
 
@@ -156,7 +186,7 @@ export default function CadastroPage() {
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-primary-500/5 rounded-full blur-3xl" />
       </div>
 
-      <div className="w-full max-w-sm relative animate-fade-in">
+      <div className="w-full max-w-xl relative animate-fade-in py-6">
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl bg-primary-500/10 border border-primary-500/30 flex items-center justify-center mx-auto mb-4">
             <Sparkles className="w-7 h-7 text-primary-500" />
@@ -181,6 +211,8 @@ export default function CadastroPage() {
               leftIcon={<User className="w-4 h-4" />}
               required
             />
+            <Input label="Apelido" value={form.nickname} onChange={(e) => setForm((f) => ({ ...f, nickname: e.target.value }))} placeholder="Como você quer aparecer nas comunidades" required />
+            <Input label="Data de nascimento" type="date" value={form.birth_date} onChange={(e) => setForm((f) => ({ ...f, birth_date: e.target.value }))} required />
 
             <Input
               label="CPF"
@@ -191,6 +223,24 @@ export default function CadastroPage() {
               leftIcon={<User className="w-4 h-4" />}
               required
             />
+
+            <div className="border-t border-slate-200 pt-4"><h3 className="mb-3 font-semibold text-slate-900">Endereço</h3><div className="space-y-3">
+              <Input label="CEP" value={form.cep} onChange={(e) => setForm((f) => ({ ...f, cep: e.target.value.replace(/\D/g, '').slice(0, 8) }))} onBlur={lookupCep} placeholder="00000000" required />
+              <Input label="Rua ou avenida" value={form.address_street} onChange={(e) => setForm((f) => ({ ...f, address_street: e.target.value }))} required />
+              <div className="grid grid-cols-2 gap-3"><Input label="Número" value={form.address_number} onChange={(e) => setForm((f) => ({ ...f, address_number: e.target.value }))} required /><Input label="Complemento" value={form.address_complement} onChange={(e) => setForm((f) => ({ ...f, address_complement: e.target.value }))} /></div>
+              <Input label="Bairro" value={form.address_neighborhood} onChange={(e) => setForm((f) => ({ ...f, address_neighborhood: e.target.value }))} required />
+              <div className="grid grid-cols-[1fr_80px] gap-3"><Input label="Cidade" value={form.address_city} onChange={(e) => setForm((f) => ({ ...f, address_city: e.target.value }))} required /><Input label="UF" value={form.address_state} maxLength={2} onChange={(e) => setForm((f) => ({ ...f, address_state: e.target.value.toUpperCase() }))} required /></div>
+            </div></div>
+
+            <div className="border-t border-slate-200 pt-4"><h3 className="mb-3 font-semibold text-slate-900">Contato de emergência</h3><div className="space-y-3">
+              <Input label="Nome do contato" value={form.emergency_name} onChange={(e) => setForm((f) => ({ ...f, emergency_name: e.target.value }))} required />
+              <Input label="WhatsApp do contato" value={form.emergency_phone} onChange={(e) => setForm((f) => ({ ...f, emergency_phone: e.target.value }))} required />
+              <Input label="Qual é a relação?" value={form.emergency_relationship} onChange={(e) => setForm((f) => ({ ...f, emergency_relationship: e.target.value }))} placeholder="Ex.: mãe, esposo, amiga" required />
+            </div></div>
+
+            {form.referral_code && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="text-sm font-semibold text-blue-950">Você chegou por uma indicação</p><label className="mt-3 block text-sm text-blue-900">Qual é seu vínculo com quem indicou?
+              <select value={form.referral_relationship} onChange={(e) => setForm((f) => ({ ...f, referral_relationship: e.target.value }))} className="mt-1 w-full rounded-lg border border-blue-200 bg-white p-3 text-slate-900" required><option value="">Selecione</option><option>Familiar</option><option>Amigo</option><option>Colega de trabalho</option><option>Líder ou mentor</option><option>Profissional de saúde</option><option>Comunidade ou igreja</option><option>Outro</option></select>
+            </label></div>}
 
             <Input
               label="E-mail"

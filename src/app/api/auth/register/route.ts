@@ -6,12 +6,20 @@ import { sendTextMessage } from "@/lib/evolution/client";
 // POST /api/auth/register
 export async function POST(req: NextRequest) {
   try {
-    const { full_name, cpf, email, phone, password } = await req.json();
+    const body = await req.json();
+    const { full_name, nickname, cpf, email, phone, password, birth_date, cep,
+      address_street, address_number, address_complement, address_neighborhood,
+      address_city, address_state, emergency_name, emergency_phone,
+      emergency_relationship, referral_code, referral_relationship } = body;
 
     // Validações
-    if (!full_name?.trim() || !cpf || !email?.trim() || !password || !/^55\d{10,11}$/.test(String(phone || ""))) {
+    if (!full_name?.trim() || !nickname?.trim() || !cpf || !email?.trim() || !password ||
+      !/^55\d{10,11}$/.test(String(phone || "")) || !/^\d{4}-\d{2}-\d{2}$/.test(String(birth_date || '')) ||
+      !/^\d{8}$/.test(String(cep || '')) || !address_street?.trim() || !address_number?.trim() ||
+      !address_neighborhood?.trim() || !address_city?.trim() || !/^[A-Z]{2}$/.test(String(address_state || '')) ||
+      !emergency_name?.trim() || !/^55\d{10,11}$/.test(String(emergency_phone || '')) || !emergency_relationship?.trim()) {
       return NextResponse.json(
-        { error: "Preencha nome, CPF, e-mail, WhatsApp e senha válidos" },
+        { error: "Preencha todos os dados obrigatórios com informações válidas" },
         { status: 400 }
       );
     }
@@ -28,6 +36,9 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = createAdminClient();
+    const { data: referrer } = referral_code ? await supabase.from('user_profiles')
+      .select('id').eq('referral_code', String(referral_code).toUpperCase()).maybeSingle() : { data: null };
+    if (referral_code && !referrer) return NextResponse.json({ error: 'Link de indicação inválido' }, { status: 400 });
 
     // Verifica se CPF já existe
     const { data: existingCPF } = await supabase
@@ -70,11 +81,18 @@ export async function POST(req: NextRequest) {
       .insert({
         user_id: authData.user.id,
         full_name,
+        nickname,
         cpf,
         email,
         phone: phone || null,
         role: "member",
         is_active: false,
+        birth_date, cep, address_street, address_number,
+        address_complement: address_complement?.trim() || null,
+        address_neighborhood, address_city, address_state,
+        emergency_name, emergency_phone, emergency_relationship,
+        referred_by: referrer?.id || null,
+        referral_relationship: referrer ? String(referral_relationship || '').trim() : null,
       });
 
     if (profileError) {
@@ -92,6 +110,9 @@ export async function POST(req: NextRequest) {
       name: full_name,
       cpf,
       email,
+      birth_date,
+      cep,
+      address_json: { logradouro: address_street, numero: address_number, complemento: address_complement || '', bairro: address_neighborhood, localidade: address_city, uf: address_state },
       status: "aguardando_aprovacao",
       user_id: authData.user.id,
       onboarding_step: 6,
@@ -106,7 +127,7 @@ export async function POST(req: NextRequest) {
       user_id: authData.user.id,
       action: "user_registered",
       entity_type: "user",
-      new_data: { cpf, email, full_name },
+      new_data: { cpf, email, full_name, referred_by: referrer?.id || null, referral_relationship: referrer ? referral_relationship : null },
     });
 
     return NextResponse.json(

@@ -13,10 +13,12 @@ type Group = {
   membership: { role: string; status: string };
   pending_count: number;
 };
+type FeaturedGroup = { id: string; name: string; description: string | null; category_slug: string; member_count: number; best_days: number; joined: boolean };
 
 export default function GruposPage() {
   const router = useRouter();
   const [groups, setGroups] = useState<Group[]>([]);
+  const [featuredGroups, setFeaturedGroups] = useState<FeaturedGroup[]>([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [groupType, setGroupType] = useState<'club' | 'challenge'>('club');
@@ -33,7 +35,7 @@ export default function GruposPage() {
   useEffect(() => {
     setToken(new URLSearchParams(window.location.search).get('convite') || '');
     fetch('/api/addiction/groups').then((response) => response.json())
-      .then((data) => setGroups(data.groups || []))
+      .then((data) => { setGroups(data.groups || []); setFeaturedGroups(data.featured_groups || []); })
       .catch(() => setError('Não foi possível carregar os grupos'))
       .finally(() => setLoadingGroups(false));
     fetch('/api/profile').then((response) => response.json())
@@ -72,6 +74,17 @@ export default function GruposPage() {
     finally { setBusy(false); }
   }
 
+  async function joinFeatured(groupId: string) {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/addiction/groups/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: groupId }) });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Não foi possível entrar');
+      router.push(`/addiction/grupos/${data.group_id}`);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Não foi possível entrar'); }
+    finally { setBusy(false); }
+  }
+
   const pendingTotal = groups.reduce((total, group) => total + (group.pending_count || 0), 0);
   return <div className="mx-auto max-w-6xl space-y-6 p-4 pb-12 sm:p-6">
     <Link href="/addiction" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">← Controle de Vícios</Link>
@@ -82,6 +95,15 @@ export default function GruposPage() {
         </div></div>
     </header>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
+    <section className="space-y-3">
+      <div><h2 className="text-xl font-bold text-slate-900">Encontre sua comunidade</h2><p className="text-sm text-slate-600">Entre em um grupo sugerido e caminhe com pessoas que têm a mesma meta.</p></div>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{featuredGroups.map((group) => <article key={group.id} className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50 p-5 shadow-sm">
+        <h3 className="font-bold text-slate-900">{group.name}</h3><p className="mt-2 min-h-10 text-sm text-slate-600">{group.description}</p>
+        <div className="mt-4 grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-emerald-800">{group.member_count}</strong><span className="text-xs text-slate-600">participantes</span></div><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-blue-800">{group.best_days}</strong><span className="text-xs text-slate-600">melhor sequência</span></div></div>
+        <p className="mt-3 text-sm font-medium text-emerald-900">Continue: você consegue.</p>
+        {group.joined ? <Link href={`/addiction/grupos/${group.id}`} className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-100 text-sm font-bold text-emerald-900">Abrir grupo</Link> : <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className="mt-3 w-full">Entrar neste grupo</Button>}
+      </article>)}</div>
+    </section>
     {pendingTotal > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm">
       <div className="flex items-center gap-3"><Clock3 className="h-6 w-6 text-amber-700" /><p className="font-semibold">{pendingTotal} {pendingTotal === 1 ? 'pessoa aguarda' : 'pessoas aguardam'} sua aprovação</p></div>
       <a href="#meus-grupos" className="font-semibold text-amber-800 underline">Ver pedidos ↓</a>
