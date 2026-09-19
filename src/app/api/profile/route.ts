@@ -38,6 +38,12 @@ export async function PATCH(request: NextRequest) {
     const emergencyName = typeof body.emergency_name === 'string' ? body.emergency_name.trim() : '';
     const emergencyPhone = body.emergency_phone ? normalizePhone(body.emergency_phone) : null;
     const emergencyRelationship = typeof body.emergency_relationship === 'string' ? body.emergency_relationship.trim() : '';
+    const address = {
+      cep: String(body.cep || '').replace(/\D/g, ''), address_street: String(body.address_street || '').trim(),
+      address_number: String(body.address_number || '').trim(), address_complement: String(body.address_complement || '').trim() || null,
+      address_neighborhood: String(body.address_neighborhood || '').trim(), address_city: String(body.address_city || '').trim(),
+      address_state: String(body.address_state || '').trim().toUpperCase(),
+    };
     if (fullName.length < 2 || fullName.length > 120 || nickname.length < 2 || nickname.length > 32 || !phone) {
       return NextResponse.json({ error: 'Confira nome, apelido e WhatsApp com DDD' }, { status: 400 });
     }
@@ -47,6 +53,9 @@ export async function PATCH(request: NextRequest) {
     if (emergencyName.length > 120 || emergencyRelationship.length > 60 || Boolean(emergencyName) !== Boolean(emergencyPhone) || (body.emergency_phone && !emergencyPhone)) {
       return NextResponse.json({ error: 'Informe nome e telefone válidos do contato de emergência' }, { status: 400 });
     }
+    if (!birthDate || !emergencyName || !emergencyPhone || !emergencyRelationship || !/^\d{8}$/.test(address.cep) || !address.address_street || !address.address_number || !address.address_neighborhood || !address.address_city || !/^[A-Z]{2}$/.test(address.address_state)) {
+      return NextResponse.json({ error: 'Preencha data de nascimento, contato de emergência e endereço completo' }, { status: 400 });
+    }
     const { error } = await db.rpc('update_profile_details', {
       p_profile_id: user.id, p_full_name: fullName, p_nickname: nickname, p_phone: phone,
       p_birth_date: birthDate, p_emergency_name: emergencyName || null,
@@ -55,6 +64,8 @@ export async function PATCH(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.code === '23505' ? 'Este WhatsApp já está cadastrado' : 'Não foi possível salvar o perfil' }, { status: 400 });
     }
+    const { error: addressError } = await db.from('user_profiles').update(address).eq('id', user.id);
+    if (addressError) return NextResponse.json({ error: 'Perfil salvo, mas não foi possível atualizar o endereço' }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
 

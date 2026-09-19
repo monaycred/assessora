@@ -89,7 +89,10 @@ export default function ConfiguracoesPage() {
         body: JSON.stringify({ action: 'details', full_name: profile.full_name,
           nickname: profile.nickname, phone: profile.phone, birth_date: profile.birth_date,
           emergency_name: profile.emergency_name, emergency_phone: profile.emergency_phone,
-          emergency_relationship: profile.emergency_relationship }),
+          emergency_relationship: profile.emergency_relationship, cep: profile.cep,
+          address_street: profile.address_street, address_number: profile.address_number,
+          address_complement: profile.address_complement, address_neighborhood: profile.address_neighborhood,
+          address_city: profile.address_city, address_state: profile.address_state }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Erro ao salvar');
@@ -239,8 +242,18 @@ export default function ConfiguracoesPage() {
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_name: e.target.value }))} />
                 <Input label="WhatsApp do contato" value={profile.emergency_phone || ''} placeholder="(11) 9XXXX-XXXX"
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_phone: e.target.value }))} />
-                <Input label="Relação (opcional)" value={profile.emergency_relationship || ''} maxLength={60}
+                <Input label="Relação" value={profile.emergency_relationship || ''} maxLength={60} required
                   onChange={(e) => setProfile((p: any) => ({ ...p, emergency_relationship: e.target.value }))} />
+              </div>
+              <div className="grid gap-3 rounded-lg border border-dark-700 p-4 sm:grid-cols-2">
+                <p className="text-sm font-medium text-dark-200 sm:col-span-2">Endereço</p>
+                <Input label="CEP" value={profile.cep || ''} required onChange={(e) => setProfile((p:any)=>({...p,cep:e.target.value}))}/>
+                <Input label="Rua" value={profile.address_street || ''} required onChange={(e) => setProfile((p:any)=>({...p,address_street:e.target.value}))}/>
+                <Input label="Número" value={profile.address_number || ''} required onChange={(e) => setProfile((p:any)=>({...p,address_number:e.target.value}))}/>
+                <Input label="Complemento (opcional)" value={profile.address_complement || ''} onChange={(e) => setProfile((p:any)=>({...p,address_complement:e.target.value}))}/>
+                <Input label="Bairro" value={profile.address_neighborhood || ''} required onChange={(e) => setProfile((p:any)=>({...p,address_neighborhood:e.target.value}))}/>
+                <Input label="Cidade" value={profile.address_city || ''} required onChange={(e) => setProfile((p:any)=>({...p,address_city:e.target.value}))}/>
+                <Input label="Estado (UF)" value={profile.address_state || ''} maxLength={2} required onChange={(e) => setProfile((p:any)=>({...p,address_state:e.target.value.toUpperCase()}))}/>
               </div>
               <Button
                 onClick={handleSave}
