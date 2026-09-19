@@ -12,6 +12,7 @@ interface PostCommentsProps {
   postId: string;
   trackerId: string;
   initialComments?: CommunityComment[];
+  initialCount?: number;
 }
 type DisplayComment = CommunityComment & { avatar_url?: string | null };
 
@@ -19,19 +20,16 @@ export function PostComments({
   postId,
   trackerId,
   initialComments = [],
+  initialCount = 0,
 }: PostCommentsProps) {
   const [comments, setComments] = useState<DisplayComment[]>(initialComments);
   const [loading, setLoading] = useState(false);
   const [fetchingComments, setFetchingComments] = useState(false);
-  const [showComments, setShowComments] = useState(false);
+  const [showComments, setShowComments] = useState(initialCount > 0);
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (showComments && comments.length === 0) {
-      fetchComments();
-    }
-  }, [showComments]);
+  useEffect(() => { void fetchComments(); const timer=setInterval(fetchComments,30000); return()=>clearInterval(timer); }, [postId]);
 
   const fetchComments = async () => {
     setFetchingComments(true);
@@ -68,8 +66,9 @@ export function PostComments({
       }
 
       const data = await res.json();
-      setComments([...comments, data.comment]);
+      setComments(current => [...current, data.comment]);
       setContent('');
+      setShowComments(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
     } finally {

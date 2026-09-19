@@ -163,6 +163,7 @@ export function CommunityFeed({
                 <PostComments
                   postId={post.id}
                   trackerId={userTrackerId}
+                  initialCount={post.comment_count}
                 />
               </div>
             )}
