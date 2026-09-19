@@ -101,8 +101,9 @@ export async function POST(
 
     const communityName = user.nickname || tracker.community_name_custom || tracker.community_name;
 
+    const postId = (await params).id;
     const comment = await createComment(
-      (await params).id,
+      postId,
       tracker_id,
       communityName,
       tracker.current_streak_days,
@@ -116,6 +117,9 @@ export async function POST(
         { status: 500 }
       );
     }
+    const {data:post}=await supabase.from('community_posts').select('tracker_id').eq('id',postId).maybeSingle();
+    const {data:ownerTracker}=post?await supabase.from('addiction_trackers').select('user_id').eq('id',post.tracker_id).maybeSingle():{data:null};
+    if(ownerTracker?.user_id&&ownerTracker.user_id!==user.id)await supabase.from('app_notifications').insert({recipient_profile_id:ownerTracker.user_id,type:'comment',title:'Novo comentário',message:`${communityName} comentou em sua publicação`,entity_type:'post',entity_id:postId,dedupe_key:`comment:${comment.id}`});
 
     return NextResponse.json(
       { comment: { ...comment, community_name: communityName, avatar_url: user.avatarUrl }, message: 'Comentário adicionado!' },

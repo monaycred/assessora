@@ -66,7 +66,8 @@ export async function POST(
       );
     }
 
-    const success = await addReaction((await params).id, tracker_id, reaction_type);
+    const postId=(await params).id;
+    const success = await addReaction(postId, tracker_id, reaction_type);
 
     if (!success) {
       return NextResponse.json(
@@ -74,6 +75,9 @@ export async function POST(
         { status: 500 }
       );
     }
+    const {data:post}=await supabase.from('community_posts').select('tracker_id').eq('id',postId).maybeSingle();
+    const {data:ownerTracker}=post?await supabase.from('addiction_trackers').select('user_id').eq('id',post.tracker_id).maybeSingle():{data:null};
+    if(ownerTracker?.user_id&&ownerTracker.user_id!==user.id)await supabase.from('app_notifications').insert({recipient_profile_id:ownerTracker.user_id,type:'reaction',title:'Nova reação',message:`Alguém reagiu ${reaction_type} à sua publicação`,entity_type:'post',entity_id:postId,dedupe_key:`reaction:${postId}:${user.id}:${reaction_type}`});
 
     return NextResponse.json(
       { message: 'Reação adicionada' },
