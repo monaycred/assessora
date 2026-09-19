@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     if (!title || title.length > 100 || !content || content.length > 2000) return NextResponse.json({ error: 'Informe um título e um texto de até 2.000 caracteres' }, { status: 400 });
     if (!['victory','challenge','tip','general'].includes(postType)) return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
     const db = createAdminClient();
-    if (audience === 'groups') {
+    if (audience === 'groups' && user.role !== 'admin') {
       const { data: memberships } = await db.from('support_group_members').select('group_id').eq('user_profile_id', user.id).eq('status', 'active').in('group_id', groupIds);
       if (!groupIds.length || (memberships || []).length !== groupIds.length) return NextResponse.json({ error: 'Escolha ao menos um grupo do qual você participa' }, { status: 400 });
     }
