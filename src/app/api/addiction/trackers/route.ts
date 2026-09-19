@@ -11,6 +11,7 @@ import {
   createTracker,
   getUserTrackers,
 } from '@/lib/addiction/database';
+import { sendTextMessage } from '@/lib/evolution/client';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Obter workspace padrão do usuário (se existir)
     const { data: userProfile } = await supabase
       .from('user_profiles')
-      .select('id')
+      .select('id, phone')
       .eq('id', user.id)
       .single();
 
@@ -114,8 +115,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Confirma a criação no WhatsApp. A jornada permanece criada mesmo se o
+    // provedor estiver temporariamente indisponível.
+    let whatsappSent = false;
+    try {
+      const { data: contact } = await supabase
+        .from('contacts')
+        .select('phone_number, instance_name')
+        .eq('user_id', user.id)
+        .eq('status', 'aprovado')
+        .maybeSingle();
+
+      const phone = contact?.phone_number || userProfile?.phone;
+      if (phone) {
+        const milestoneDays = Array.from(
+          new Set(
+            ((tracker.custom_milestones || []) as number[])
+              .map((seconds) => Math.round(Number(seconds) / 86400))
+              .filter((days) => days > 0 && (!tracker.goal_days || days <= tracker.goal_days))
+          )
+        ).sort((a, b) => a - b);
+
+        const milestoneText = milestoneDays.length
+          ? milestoneDays.length === 1
+            ? `${milestoneDays[0]} dia`
+            : `${milestoneDays.slice(0, -1).join(', ')} e ${milestoneDays.at(-1)} dias`
+          : 'momentos importantes da sua jornada';
+        const goalText = tracker.goal_days
+          ? `por *${tracker.goal_days} dias*`
+          : '*sem prazo definido*';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://assessora.gedaias.com';
+
+        await sendTextMessage(
+          phone,
+          `✅ *Jornada criada: ${tracker.name}*\n\nVocê se desafiou ${goalText}.\n\nVamos acompanhar você em *${milestoneText}*. O contador começou agora e continuará marcando seus dias automaticamente.\n\nPara editar sua jornada, acesse o portal:\n${appUrl}/addiction/${tracker.id}/editar`,
+          contact?.instance_name || undefined
+        );
+        whatsappSent = true;
+      }
+    } catch (whatsappError) {
+      console.error('[Addiction] Não foi possível enviar a confirmação da jornada:', whatsappError);
+    }
+
     return NextResponse.json(
-      { tracker, message: 'Tracker criado com sucesso!' },
+      { tracker, whatsapp_sent: whatsappSent, message: 'Jornada criada com sucesso!' },
       { status: 201 }
     );
   } catch (error) {
