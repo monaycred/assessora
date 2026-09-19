@@ -29,10 +29,12 @@ import {
   ListTodo,
   KeyRound,
   Flag,
+  BookOpen,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import NotificationBell from "./NotificationBell";
 
 type NavItem =
   | { type: "divider"; label: string }
@@ -49,6 +51,7 @@ const navigation: NavItem[] = [
   { name: "Usuários", href: "/usuarios", icon: Users, adminOnly: true },
   { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle, adminOnly: true },
   { name: "Denúncias", href: "/addiction/admin/reports", icon: Flag, adminOnly: true },
+  { name: "Conteúdos", href: "/descobrir-admin", icon: BookOpen, adminOnly: true },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
   { name: "Jornadas", href: "/addiction", icon: Target, moduleKey: "addiction" },
@@ -129,7 +132,7 @@ export default function Sidebar() {
   return <>
     <div className="fixed inset-x-0 top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm md:hidden">
       <Link href="/addiction" className="flex items-center gap-2 font-bold text-slate-900"><span className="rounded-lg bg-emerald-100 p-2 text-emerald-700"><Sparkles className="h-5 w-5" /></span>Iasmin</Link>
-      <button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 p-2 text-slate-800"><Menu className="h-6 w-6" /></button>
+      <div className="flex items-center gap-2"><NotificationBell/><button type="button" aria-label="Abrir menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)} className="rounded-xl border border-slate-200 p-2 text-slate-800"><Menu className="h-6 w-6" /></button></div>
     </div>
     {menuOpen && <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-40 bg-slate-950/50 md:hidden" />}
     <aside className={cn("fixed left-0 top-0 z-50 flex h-full w-72 max-w-[85vw] flex-col border-r border-slate-200 bg-white shadow-xl transition-transform md:z-40 md:w-60 md:translate-x-0 md:shadow-none", menuOpen ? "translate-x-0" : "-translate-x-full")}>
@@ -146,7 +149,7 @@ export default function Sidebar() {
             </p>
           </div>
         </div>
-        <button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 text-slate-700 md:hidden"><X className="h-5 w-5" /></button>
+        <div className="hidden md:block"><NotificationBell/></div><button type="button" aria-label="Fechar menu" onClick={() => setMenuOpen(false)} className="rounded-lg p-2 text-slate-700 md:hidden"><X className="h-5 w-5" /></button>
       </div>
 
       {/* Nav */}

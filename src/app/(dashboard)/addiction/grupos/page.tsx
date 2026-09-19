@@ -33,6 +33,7 @@ export default function GruposPage() {
   const [description, setDescription] = useState('');
   const [groupType, setGroupType] = useState<'club' | 'challenge'>('club');
   const [joinPolicy, setJoinPolicy] = useState<'approval' | 'link'>('approval');
+  const [rankingEnabled, setRankingEnabled] = useState(true);
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
   const [token, setToken] = useState('');
@@ -59,7 +60,7 @@ export default function GruposPage() {
       const response = await fetch('/api/addiction/groups', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description, group_type: groupType, join_policy: joinPolicy,
-          starts_on: startsOn, ends_on: endsOn, ranking_enabled: true }),
+          starts_on: startsOn, ends_on: endsOn, ranking_enabled: rankingEnabled }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao criar grupo');
@@ -74,7 +75,7 @@ export default function GruposPage() {
     try {
       const response = await fetch('/api/addiction/groups/join', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token.trim() }),
+        body: JSON.stringify({ token: token.trim(), loyalty_accepted: true }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao entrar no grupo');
@@ -86,7 +87,9 @@ export default function GruposPage() {
   async function joinFeatured(groupId: string) {
     setBusy(true); setError('');
     try {
-      const response = await fetch('/api/addiction/groups/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: groupId }) });
+      const accepted = window.confirm('Compromisso do grupo: registrarei meu progresso com honestidade para respeitar os demais participantes. Deseja entrar?');
+      if (!accepted) { setBusy(false); return; }
+      const response = await fetch('/api/addiction/groups/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ group_id: groupId, loyalty_accepted: true }) });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Não foi possível entrar');
       router.push(`/addiction/grupos/${data.group_id}`);
@@ -110,7 +113,6 @@ export default function GruposPage() {
       {discoverGroups.length === 0 ? <div className="rounded-3xl border-2 border-dashed border-blue-200 bg-blue-50 p-6 text-center text-sm font-semibold text-blue-900">Você já participa de todas as comunidades sugeridas 🎉</div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{discoverGroups.map((group) => {const style=communityStyle[group.category_slug]||{emoji:'💪',card:'from-blue-50 to-indigo-100 border-blue-300',button:'bg-blue-600 hover:bg-blue-700'};return <article key={group.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br p-5 shadow-md transition hover:-translate-y-1 hover:shadow-xl ${style.card}`}>
         <div className="absolute -right-4 -top-4 text-7xl opacity-15">{style.emoji}</div><div className="relative"><span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-2xl shadow-sm">{style.emoji}</span><h3 className="text-lg font-extrabold text-slate-950">{group.name}</h3><p className="mt-2 min-h-10 text-sm leading-5 text-slate-700">{group.description}</p>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-emerald-800">{group.member_count}</strong><span className="text-xs text-slate-600">participantes</span></div><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-blue-800">{group.best_days}</strong><span className="text-xs text-slate-600">melhor sequência</span></div></div>
-        <p className="mt-3 text-sm font-medium text-emerald-900">Continue: você consegue.</p>
         <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className={`mt-3 w-full ${style.button}`}>Entrar nesta comunidade</Button></div>
       </article>})}</div>}
     </section>
@@ -146,7 +148,7 @@ export default function GruposPage() {
             </select>
           </label>
           <p className="rounded-lg bg-white p-3 text-sm text-slate-600">{joinPolicy === 'approval' ? 'Quando alguém usar seu convite, um pedido aparecerá aqui para você aprovar.' : 'Quem usar o convite entra imediatamente no grupo.'}</p>
-          <p className="rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-950">🏆 Todo grupo já vem com ranking para motivar a comunidade.</p>
+          <label className="flex items-start gap-3 rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-950"><input type="checkbox" checked={rankingEnabled} onChange={e=>setRankingEnabled(e.target.checked)} className="mt-1"/><span><b>Ativar ranking</b><span className="block font-normal">Use em desafios e jornadas. Comunidades de filmes, dicas e interesses podem ficar sem ranking.</span></span></label>
           <Button type="submit" disabled={busy} className="w-full sm:w-auto">Criar grupo</Button>
         </form>
       </Card>

@@ -137,5 +137,12 @@ export async function POST(request: NextRequest, { params }: Context) {
     return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true });
   }
 
+  if (body.action === 'leave') {
+    if (!membership || membership.status !== 'active') return NextResponse.json({ error: 'Você não participa deste grupo' }, { status: 400 });
+    if (membership.role === 'owner') return NextResponse.json({ error: 'Transfira a responsabilidade antes de sair' }, { status: 400 });
+    const { error } = await db.from('support_group_members').update({ status: 'removed' }).eq('group_id', id).eq('user_profile_id', user.id);
+    return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true });
+  }
+
   return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
 }

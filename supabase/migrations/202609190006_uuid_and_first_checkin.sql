@@ -1,0 +1,17 @@
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+ALTER TABLE public.addiction_trackers ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.addiction_entries ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.addiction_milestones_reached ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.addiction_resets ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.community_posts ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.community_reactions ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.community_comments ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.community_reports ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.community_warnings ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.support_groups ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.support_group_invites ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.support_group_posts ALTER COLUMN id SET DEFAULT gen_random_uuid();
+ALTER TABLE public.support_group_post_comments ALTER COLUMN id SET DEFAULT gen_random_uuid();
+CREATE OR REPLACE FUNCTION public.make_checkin_reply_code() RETURNS TEXT LANGUAGE sql AS $$ SELECT upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 12)); $$;
+ALTER FUNCTION public.record_addiction_checkin(UUID, DATE, TEXT, TEXT) SET search_path = public, extensions;
+ALTER FUNCTION public.reset_addiction_tracker(UUID) SET search_path = public, extensions;

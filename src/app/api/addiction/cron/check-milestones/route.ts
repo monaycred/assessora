@@ -12,7 +12,7 @@ import {
   generateMilestoneMessage,
 } from '@/lib/addiction/utils';
 import { createMilestoneReached } from '@/lib/addiction/database';
-import { sendMilestoneNotification } from '@/lib/addiction/whatsapp';
+import { sendTextMessage } from '@/lib/evolution/client';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,11 +70,10 @@ export async function GET(request: NextRequest) {
 
           // Tentar enviar notificação via WhatsApp
           // Nota: requer número de telefone armazenado
-          const notificationSent = await sendMilestoneNotification({
-            trackerId: tracker.id,
-            userPhone: tracker.user_id, // TODO: buscar número real
-            milestoneDays: milestoneDayValue,
-          });
+          const { data: profile } = await supabase.from('user_profiles').select('id,phone').eq('id',tracker.user_id).maybeSingle();
+          let notificationSent = false;
+          if (profile?.phone) notificationSent = await sendTextMessage(profile.phone,`🏆 *Acompanhamento da Iasmin*\n\nVocê chegou a ${milestoneDayValue} dias em *${tracker.name}*.\n\nVocê continua seguindo seu propósito? Responda:\n1 — Sim\n2 — Não\n3 — Preciso de apoio`).then(()=>true).catch(()=>false);
+          if (profile) await supabase.from('app_notifications').insert({recipient_profile_id:profile.id,type:'milestone',title:'Marco alcançado',message:`Você completou ${milestoneDayValue} dias em ${tracker.name}`,entity_type:'tracker',entity_id:tracker.id,dedupe_key:`milestone:${tracker.id}:${milestoneDayValue}`});
 
           console.log(
             `[Milestone] Tracker ${tracker.id} atingiu ${milestoneDayValue} dias`,

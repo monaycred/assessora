@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Button from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -19,6 +19,7 @@ interface GroupData {
 
 export default function GrupoPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const [data, setData] = useState<GroupData | null>(null);
   const [content, setContent] = useState('');
   const [invite, setInvite] = useState('');
@@ -43,6 +44,7 @@ export default function GrupoPage() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || 'Erro ao salvar');
       if (body.action === 'invite') setInvite(`${window.location.origin}/addiction/grupos?convite=${result.token}`);
+      else if (body.action === 'leave') router.push('/addiction');
       else { setContent(''); await load(); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Erro inesperado'); }
     finally { setBusy(false); }
@@ -56,7 +58,7 @@ export default function GrupoPage() {
     data.group.starts_on && data.group.ends_on ? `Desafio de ${new Date(`${data.group.starts_on}T12:00:00`).toLocaleDateString('pt-BR')} até ${new Date(`${data.group.ends_on}T12:00:00`).toLocaleDateString('pt-BR')}` : 'Desafio com prazo';
   return <div className="mx-auto max-w-6xl space-y-5 p-4 pb-12 sm:p-6">
     <Link href="/addiction/grupos" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">← Meus grupos</Link>
-    <header className="rounded-3xl bg-gradient-to-br from-teal-600 via-emerald-600 to-blue-700 p-5 text-white shadow-lg sm:p-8">
+    <header className="rounded-3xl bg-gradient-to-br from-blue-700 via-cyan-500 to-emerald-400 p-5 text-white shadow-lg sm:p-8">
       <div className="flex items-start gap-3"><div className="rounded-2xl bg-white/20 p-3"><HeartHandshake className="h-6 w-6" /></div><div className="min-w-0"><p className="text-sm font-medium text-white/90">{dateLabel}</p><h1 className="mt-1 break-words text-2xl font-bold sm:text-3xl">{data.group.name}</h1>{data.group.description && <p className="mt-2 text-sm leading-6 text-white/90">{data.group.description}</p>}</div></div>
     </header>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
@@ -102,6 +104,7 @@ export default function GrupoPage() {
           <form className="mt-3 flex gap-2" onSubmit={async event=>{event.preventDefault();const value=(comments[post.id]||'').trim();if(!value)return;await act({action:'comment',post_id:post.id,content:value});setComments(current=>({...current,[post.id]:''}));}}><input aria-label="Escrever comentário" value={comments[post.id]||''} onChange={event=>setComments(current=>({...current,[post.id]:event.target.value}))} maxLength={300} placeholder="Comentar..." className="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm text-slate-900"/><Button type="submit" size="sm" disabled={busy||!(comments[post.id]||'').trim()} aria-label="Enviar comentário"><MessageCircle className="h-4 w-4"/></Button></form>
         </div>)}</div>
       </Card>
+      {!manager && <Button variant="outline" className="w-full border-red-200 text-red-700" onClick={()=>{if(confirm('Deseja sair deste grupo? Você deixará de ver as publicações e o ranking.'))void act({action:'leave'})}}>Sair do grupo</Button>}
     </>}
   </div>;
 }

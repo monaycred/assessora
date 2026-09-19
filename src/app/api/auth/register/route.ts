@@ -132,6 +132,13 @@ export async function POST(req: NextRequest) {
       new_data: { cpf, email, full_name, referred_by: referrer?.id || null, referral_relationship: referrer ? referral_relationship : null },
     });
 
+    const { data: newProfile } = await supabase.from('user_profiles').select('id').eq('user_id', authData.user.id).single();
+    const { data: admins } = await supabase.from('user_profiles').select('id,phone').eq('role','admin').eq('is_active',true);
+    if (admins?.length && newProfile) {
+      await supabase.from('app_notifications').insert(admins.map((admin:any)=>({recipient_profile_id:admin.id,type:'approval',title:'Novo cadastro para aprovar',message:`${full_name} aguarda sua análise`,entity_type:'approval',entity_id:newProfile.id,dedupe_key:`signup:${newProfile.id}:${admin.id}`})));
+      await Promise.all(admins.filter((a:any)=>a.phone).map((a:any)=>sendTextMessage(a.phone,`🔔 *Novo cadastro na Iasmin*\n\n${full_name} aguarda sua aprovação.\n\nAcesse o painel: https://assessora.gedaias.com/aprovacoes`).catch(()=>false)));
+    }
+
     return NextResponse.json(
       { message: "Conta criada com sucesso!", user_id: authData.user.id },
       { status: 201 }

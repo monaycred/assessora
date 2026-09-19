@@ -9,7 +9,7 @@ export async function dispatchDailyCheckins(now = new Date()) {
     timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
   }).format(now);
   const { data: trackers, error } = await db.from('addiction_trackers')
-    .select('id, user_id, name, notification_time')
+    .select('id, user_id, name, notification_time, started_at')
     .eq('is_active', true).lte('notification_time', time).limit(500);
   if (error) throw error;
   if (!trackers?.length) return { due: 0, sent: 0, failed: 0 };
@@ -18,7 +18,7 @@ export async function dispatchDailyCheckins(now = new Date()) {
   const { data: existing } = await db.from('addiction_daily_checkins')
     .select('tracker_id').eq('checkin_date', today).in('tracker_id', ids);
   const completed = new Set((existing || []).map((row: any) => row.tracker_id));
-  const due = trackers.filter((tracker: any) => !completed.has(tracker.id));
+  const due = trackers.filter((tracker: any) => !completed.has(tracker.id) && now.getTime() >= new Date(tracker.started_at).getTime() + 86400000);
   const profileIds = [...new Set(due.map((tracker: any) => tracker.user_id))];
   if (!profileIds.length) return { due: 0, sent: 0, failed: 0 };
   const { data: profiles } = await db.from('user_profiles').select('id, user_id, role, is_active')

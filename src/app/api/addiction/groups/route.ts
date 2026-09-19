@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
     starts_on: groupType === 'challenge' ? body.starts_on : null,
     ends_on: groupType === 'challenge' ? body.ends_on : null,
     join_policy: body.join_policy === 'link' ? 'link' : 'approval',
-      ranking_enabled: true,
+      ranking_enabled: body.ranking_enabled === true,
   }).select('*').single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const { error: memberError } = await db.from('support_group_members').insert({

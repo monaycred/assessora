@@ -78,7 +78,7 @@ export default function NovoTrackerPage() {
       }
 
       const data = await res.json();
-      router.push(`/addiction`);
+      router.push(`/addiction?created=${data.tracker.id}`);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro desconhecido');
