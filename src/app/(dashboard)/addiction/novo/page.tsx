@@ -36,7 +36,8 @@ const JOURNEY_PRESETS = [
   { emoji: '📱', label: 'Instagram', name: 'Menos Instagram', description: 'Quero usar meu tempo com mais intenção.' },
   { emoji: '🍬', label: 'Açúcar', name: 'Sem açúcar', description: 'Quero melhorar minha alimentação e energia.' },
   { emoji: '🛡️', label: 'Pornografia', name: 'Sem pornografia', description: 'Quero retomar o controle dos meus hábitos.' },
-  { emoji: '🤝', label: 'Cocaína', name: 'Sem cocaína', description: 'Quero apoio e constância na recuperação.' },
+  { emoji: '🥡', label: 'Delivery', name: 'Menos delivery', description: 'Quero cozinhar mais e reduzir pedidos por impulso.' },
+  { emoji: '💰', label: 'Guardar dinheiro', name: 'Guardar dinheiro', description: 'Quero construir uma reserva e cuidar melhor das finanças.' },
 ];
 
 export default function NovoTrackerPage() {

@@ -10,7 +10,6 @@ import Button from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Loader2, Trash2, AlertCircle } from 'lucide-react';
-import Link from 'next/link';
 
 export default function AdminReportsPage() {
   const [reports, setReports] = useState<CommunityReport[]>([]);
@@ -24,9 +23,10 @@ export default function AdminReportsPage() {
 
   const fetchReports = async () => {
     try {
-      // TODO: Criar endpoint GET /api/admin/reports
-      console.log('Fetching reports...');
-      setReports([]);
+      const response = await fetch('/api/admin/addiction/reports?status=pending');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Erro ao carregar denúncias');
+      setReports(data.reports || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar denúncias');
     } finally {
@@ -39,8 +39,8 @@ export default function AdminReportsPage() {
 
     setProcessingId(reportId);
     try {
-      // TODO: Implementar API DELETE /api/admin/reports/{id}
-      console.log('Deleting report:', reportId);
+      const response = await fetch(`/api/admin/addiction/reports/${reportId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'delete' }) });
+      if (!response.ok) throw new Error('Erro ao excluir conteúdo');
       setReports(reports.filter((r) => r.id !== reportId));
     } catch (err) {
       alert('Erro ao processar denúncia');
@@ -52,8 +52,8 @@ export default function AdminReportsPage() {
   const handleMarkFalseReport = async (reportId: string) => {
     setProcessingId(reportId);
     try {
-      // TODO: Implementar API PATCH /api/admin/reports/{id}
-      console.log('Marking as false report:', reportId);
+      const response = await fetch(`/api/admin/addiction/reports/${reportId}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action: 'false_report' }) });
+      if (!response.ok) throw new Error('Erro ao concluir denúncia');
       setReports(reports.filter((r) => r.id !== reportId));
     } catch (err) {
       alert('Erro ao marcar como falsa denúncia');
@@ -141,9 +141,9 @@ export default function AdminReportsPage() {
                   <p className="text-sm font-semibold mb-1">
                     {report.post_id ? 'Post denunciado:' : 'Comentário denunciado:'}
                   </p>
-                  <p className="text-sm text-gray-700">
-                    [Conteúdo será exibido aqui quando integrado com banco]
-                  </p>
+                  <p className="mb-1 text-sm font-bold text-gray-900">{(report as any).reported_content?.title}</p>
+                  <p className="whitespace-pre-wrap text-sm text-gray-700">{(report as any).reported_content?.content || 'Conteúdo indisponível'}</p>
+                  {(report as any).reported_content?.image_url && <img src={(report as any).reported_content.image_url} alt="Conteúdo denunciado" className="mt-3 max-h-72 rounded-xl object-cover" />}
                 </div>
 
                 {/* Actions */}

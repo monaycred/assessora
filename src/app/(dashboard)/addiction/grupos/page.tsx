@@ -21,7 +21,8 @@ const communityStyle: Record<string,{emoji:string;card:string;button:string}> = 
   maconha:{emoji:'🌱',card:'from-lime-50 to-green-100 border-lime-300',button:'bg-lime-600 hover:bg-lime-700'},
   instagram:{emoji:'📵',card:'from-fuchsia-50 to-purple-100 border-fuchsia-300',button:'bg-fuchsia-600 hover:bg-fuchsia-700'},
   pornografia:{emoji:'🛡️',card:'from-violet-50 to-indigo-100 border-violet-300',button:'bg-violet-600 hover:bg-violet-700'},
-  cocaina:{emoji:'🤝',card:'from-orange-50 to-amber-100 border-orange-300',button:'bg-orange-600 hover:bg-orange-700'},
+  delivery:{emoji:'🥡',card:'from-orange-50 to-amber-100 border-orange-300',button:'bg-orange-600 hover:bg-orange-700'},
+  'guardar-dinheiro':{emoji:'💰',card:'from-yellow-50 to-emerald-100 border-emerald-300',button:'bg-emerald-600 hover:bg-emerald-700'},
 };
 
 export default function GruposPage() {

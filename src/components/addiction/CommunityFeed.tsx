@@ -11,6 +11,10 @@ import { ReportModal } from './ReportModal';
 
 interface FeedPost {
   id: string;
+  title?: string | null;
+  image_url?: string | null;
+  audience_scope?: 'global' | 'groups';
+  target_groups?: string[];
   content: string;
   post_type: 'victory' | 'challenge' | 'tip' | 'general';
   community_name: string;
@@ -28,6 +32,7 @@ interface CommunityFeedProps {
   limit?: number;
   userTrackerId?: string;
   onReactionAdded?: () => void;
+  refreshKey?: number;
 }
 
 const typeEmojis: Record<string, string> = {
@@ -48,7 +53,8 @@ export function CommunityFeed({
   type = 'all',
   limit = 50,
   userTrackerId,
-  onReactionAdded
+  onReactionAdded,
+  refreshKey = 0
 }: CommunityFeedProps) {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +78,7 @@ export function CommunityFeed({
     };
 
     fetchFeed();
-  }, [type, limit]);
+  }, [type, limit, refreshKey]);
 
   if (loading) {
     return (
@@ -123,7 +129,11 @@ export function CommunityFeed({
               </div>
             </div>
 
-            {/* Content */}
+            <div className="flex flex-wrap gap-2">
+              <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-slate-700">{post.audience_scope === 'groups' ? '👥 ' + (post.target_groups?.join(', ') || 'Grupo') : '🌎 Global'}</span>
+            </div>
+            {post.title && <h2 className="text-xl font-black leading-tight text-slate-950">{post.title}</h2>}
+            {post.image_url && <img src={post.image_url} alt={post.title || 'Foto da publicação'} className="max-h-[520px] w-full rounded-2xl bg-white object-cover shadow-sm" />}
             <p className="whitespace-pre-wrap text-base leading-7 text-slate-900">{post.content}</p>
 
             {/* Reactions */}

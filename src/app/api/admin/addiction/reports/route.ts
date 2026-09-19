@@ -37,8 +37,14 @@ export async function GET(request: NextRequest) {
       .order('created_at', { ascending: true });
 
     if (error) throw error;
-
-    return NextResponse.json({ reports }, { status: 200 });
+    const postIds = (reports || []).map((r: any) => r.post_id).filter(Boolean);
+    const commentIds = (reports || []).map((r: any) => r.comment_id).filter(Boolean);
+    const { data: posts } = postIds.length ? await supabase.from('community_posts').select('id,title,content,image_url,community_name').in('id', postIds) : { data: [] };
+    const { data: comments } = commentIds.length ? await supabase.from('community_comments').select('id,content,community_name').in('id', commentIds) : { data: [] };
+    const enriched = (reports || []).map((report: any) => ({ ...report,
+      reported_content: report.post_id ? (posts || []).find((p: any) => p.id === report.post_id) : (comments || []).find((c: any) => c.id === report.comment_id),
+    }));
+    return NextResponse.json({ reports: enriched }, { status: 200 });
   } catch (error) {
     console.error('Error in GET reports:', error);
     return NextResponse.json(

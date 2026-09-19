@@ -1,163 +1,89 @@
-import { getAccessUser } from '@/lib/access';
-// ============================================================
-// API - Community Feed
-// GET /api/community/feed
-// POST /api/community/feed (create post)
-// ============================================================
-
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import {
-  getCommunityFeed,
-  createPost,
-  getTracker,
-  getPostReactions,
-  getPostComments,
-} from '@/lib/addiction/database';
-import { truncateText } from '@/lib/addiction/utils';
+import { getAccessUser } from '@/lib/access';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getPostComments, getPostReactions, getTracker } from '@/lib/addiction/database';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
-/**
- * GET /api/community/feed
- * Query params: type=(victory|challenge|tip|general|all), limit=50
- */
 export async function GET(request: NextRequest) {
   try {
+    const user = await getAccessUser('addiction');
+    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
+    const db = createAdminClient();
     const url = new URL(request.url);
     const type = url.searchParams.get('type') || 'all';
-    const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
-
-    const posts = await getCommunityFeed(type === 'all' ? null : type, limit);
-    const trackerIds = [...new Set(posts.map((post) => post.tracker_id))];
-    const { data: trackers } = trackerIds.length
-      ? await supabase.from('addiction_trackers').select('id, user_id').in('id', trackerIds)
-      : { data: [] };
-    const userIds = [...new Set((trackers || []).map((tracker: any) => tracker.user_id))];
-    const { data: profiles } = userIds.length
-      ? await supabase.from('user_profiles').select('id, nickname, avatar_url').in('id', userIds)
-      : { data: [] };
-
-    // Enriquecer posts com reações e comentários
-    const enriched = await Promise.all(
-      posts.map(async (post) => {
-        const reactions = await getPostReactions(post.id);
-        const comments = await getPostComments(post.id);
-        const tracker = trackers?.find((item: any) => item.id === post.tracker_id);
-        const profile = profiles?.find((item: any) => item.id === tracker?.user_id);
-
-        return {
-          ...post,
-          community_name: profile?.nickname || post.community_name,
-          avatar_url: profile?.avatar_url || null,
-          reactions,
-          comment_count: comments.length,
-          reactions_total: Object.values(reactions).reduce((a, b) => a + b, 0),
-        };
-      })
-    );
-
-    return NextResponse.json({ posts: enriched }, { status: 200 });
+    const groupId = url.searchParams.get('group_id');
+    const limit = Math.min(Number(url.searchParams.get('limit') || 50), 100);
+    const { data: memberships } = await db.from('support_group_members').select('group_id').eq('user_profile_id', user.id).eq('status', 'active');
+    const groupIds = (memberships || []).map((m: any) => m.group_id);
+    const { data: targets } = groupIds.length ? await db.from('community_post_groups').select('post_id,group_id').in('group_id', groupIds) : { data: [] };
+    const visibleIds = [...new Set((targets || []).map((t: any) => t.post_id))];
+    let query = db.from('community_posts').select('*').eq('is_deleted', false);
+    if (type !== 'all') query = query.eq('post_type', type);
+    if (groupId) {
+      if (!groupIds.includes(groupId)) return NextResponse.json({ error: 'Você não participa deste grupo' }, { status: 403 });
+      const ids = (targets || []).filter((t: any) => t.group_id === groupId).map((t: any) => t.post_id);
+      if (!ids.length) return NextResponse.json({ posts: [] });
+      query = query.in('id', ids);
+    } else if (visibleIds.length) query = query.or(`audience_scope.eq.global,id.in.(${visibleIds.join(',')})`);
+    else query = query.eq('audience_scope', 'global');
+    const { data: posts, error } = await query.order('created_at', { ascending: false }).limit(limit);
+    if (error) throw error;
+    const trackerIds = [...new Set((posts || []).map((p: any) => p.tracker_id))];
+    const { data: trackers } = trackerIds.length ? await db.from('addiction_trackers').select('id,user_id').in('id', trackerIds) : { data: [] };
+    const userIds = [...new Set((trackers || []).map((t: any) => t.user_id))];
+    const { data: profiles } = userIds.length ? await db.from('user_profiles').select('id,nickname,avatar_url').in('id', userIds) : { data: [] };
+    const postIds = (posts || []).map((p: any) => p.id);
+    const { data: postTargets } = postIds.length ? await db.from('community_post_groups').select('post_id,group_id').in('post_id', postIds) : { data: [] };
+    const targetGroupIds = [...new Set((postTargets || []).map((t: any) => t.group_id))];
+    const { data: groups } = targetGroupIds.length ? await db.from('support_groups').select('id,name').in('id', targetGroupIds) : { data: [] };
+    const enriched = await Promise.all((posts || []).map(async (post: any) => {
+      const tracker = (trackers || []).find((t: any) => t.id === post.tracker_id);
+      const profile = (profiles || []).find((p: any) => p.id === tracker?.user_id);
+      const reactions = await getPostReactions(post.id);
+      const comments = await getPostComments(post.id);
+      const names = (postTargets || []).filter((t: any) => t.post_id === post.id).map((t: any) => (groups || []).find((g: any) => g.id === t.group_id)?.name).filter(Boolean);
+      return { ...post, community_name: profile?.nickname || post.community_name, avatar_url: profile?.avatar_url || null,
+        target_groups: names, reactions, comment_count: comments.length,
+        reactions_total: Object.values(reactions).reduce((a: number, b: any) => a + Number(b), 0) };
+    }));
+    return NextResponse.json({ posts: enriched });
   } catch (error) {
-    console.error('Error in GET /api/community/feed:', error);
-    return NextResponse.json(
-      { error: 'Erro ao buscar feed' },
-      { status: 500 }
-    );
+    console.error('GET community feed:', error);
+    return NextResponse.json({ error: 'Erro ao buscar feed' }, { status: 500 });
   }
 }
 
-/**
- * POST /api/community/feed
- * Criar novo post
- * Body: { tracker_id, content, post_type }
- */
 export async function POST(request: NextRequest) {
   try {
     const user = await getAccessUser('addiction');
-    const authError = !user;
-
-    if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Não autenticado' },
-        { status: 401 }
-      );
-    }
-
+    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
     const body = await request.json();
-    const { tracker_id, content, post_type } = body;
-
-    if (!tracker_id || !content || !post_type) {
-      return NextResponse.json(
-        { error: 'Campos obrigatórios: tracker_id, content, post_type' },
-        { status: 400 }
-      );
+    const tracker = await getTracker(String(body.tracker_id || ''));
+    if (!tracker || tracker.user_id !== user.id) return NextResponse.json({ error: 'Jornada inválida' }, { status: 403 });
+    const title = String(body.title || '').trim();
+    const content = String(body.content || '').trim();
+    const postType = String(body.post_type || 'general');
+    const audience = body.audience === 'groups' ? 'groups' : 'global';
+    const groupIds: string[] = Array.isArray(body.group_ids) ? [...new Set(body.group_ids.map(String))] as string[] : [];
+    if (!title || title.length > 100 || !content || content.length > 2000) return NextResponse.json({ error: 'Informe um título e um texto de até 2.000 caracteres' }, { status: 400 });
+    if (!['victory','challenge','tip','general'].includes(postType)) return NextResponse.json({ error: 'Tipo inválido' }, { status: 400 });
+    const db = createAdminClient();
+    if (audience === 'groups') {
+      const { data: memberships } = await db.from('support_group_members').select('group_id').eq('user_profile_id', user.id).eq('status', 'active').in('group_id', groupIds);
+      if (!groupIds.length || (memberships || []).length !== groupIds.length) return NextResponse.json({ error: 'Escolha ao menos um grupo do qual você participa' }, { status: 400 });
     }
-
-    // Validar que o tracker pertence ao usuário
-    const tracker = await getTracker(tracker_id);
-
-    if (!tracker) {
-      return NextResponse.json(
-        { error: 'Tracker não encontrado' },
-        { status: 404 }
-      );
+    const { data: post, error } = await db.from('community_posts').insert({
+      tracker_id: tracker.id, community_name: user.nickname || tracker.community_name_custom || tracker.community_name,
+      current_streak_days: tracker.current_streak_days, title, content, post_type: postType,
+      image_url: body.image_url || null, audience_scope: audience,
+    }).select('*').single();
+    if (error) throw error;
+    if (audience === 'groups') {
+      const { error: targetError } = await db.from('community_post_groups').insert(groupIds.map(group_id => ({ post_id: post.id, group_id })));
+      if (targetError) { await db.from('community_posts').delete().eq('id', post.id); throw targetError; }
     }
-
-    if (tracker.user_id !== user.id) {
-      return NextResponse.json(
-        { error: 'Sem permissão' },
-        { status: 403 }
-      );
-    }
-
-    // Validar conteúdo
-    const trimmedContent = content.trim();
-    if (trimmedContent.length === 0 || trimmedContent.length > 280) {
-      return NextResponse.json(
-        { error: 'Post deve ter entre 1 e 280 caracteres' },
-        { status: 400 }
-      );
-    }
-
-    // Validar tipo de post
-    const validTypes = ['victory', 'challenge', 'tip', 'general'];
-    if (!validTypes.includes(post_type)) {
-      return NextResponse.json(
-        { error: 'Tipo de post inválido' },
-        { status: 400 }
-      );
-    }
-
-    const communityName = user.nickname || tracker.community_name_custom || tracker.community_name;
-
-    const post = await createPost(
-      tracker_id,
-      communityName,
-      tracker.current_streak_days,
-      trimmedContent,
-      post_type
-    );
-
-    if (!post) {
-      return NextResponse.json(
-        { error: 'Erro ao criar post' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json(
-      { post, message: 'Post criado com sucesso!' },
-      { status: 201 }
-    );
+    return NextResponse.json({ post, message: 'Publicação criada!' }, { status: 201 });
   } catch (error) {
-    console.error('Error in POST /api/community/feed:', error);
-    return NextResponse.json(
-      { error: 'Erro ao criar post' },
-      { status: 500 }
-    );
+    console.error('POST community feed:', error);
+    return NextResponse.json({ error: 'Erro ao publicar' }, { status: 500 });
   }
 }
