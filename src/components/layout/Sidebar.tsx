@@ -30,6 +30,7 @@ import {
   KeyRound,
   Flag,
   BookOpen,
+  Building2,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -52,6 +53,7 @@ const navigation: NavItem[] = [
   { name: "Aprovações", href: "/aprovacoes", icon: CheckCircle, adminOnly: true },
   { name: "Denúncias", href: "/addiction/admin/reports", icon: Flag, adminOnly: true },
   { name: "Conteúdos", href: "/descobrir-admin", icon: BookOpen, adminOnly: true },
+  { name: "Empresas", href: "/empresas-admin", icon: Building2, adminOnly: true },
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
   { name: "Jornadas", href: "/addiction", icon: Target, moduleKey: "addiction" },

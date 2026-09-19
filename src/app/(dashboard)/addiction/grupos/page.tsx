@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { ArrowRight, CircleCheck, Clock3, HeartHandshake, Link2, Plus, Users } from 'lucide-react';
+import { ArrowRight, CircleCheck, Clock3, HeartHandshake, ImagePlus, Link2, Plus, Users } from 'lucide-react';
 
 type Group = {
   id: string; name: string; description: string | null; group_type: 'club' | 'challenge';
@@ -14,6 +14,14 @@ type Group = {
   pending_count: number;
 };
 type FeaturedGroup = { id: string; name: string; description: string | null; category_slug: string; member_count: number; best_days: number; joined: boolean };
+const imageSuggestions=[
+  {label:'Corrida',url:'https://images.unsplash.com/photo-1552674605-db6ffd4facb5?auto=format&fit=crop&w=1000&q=80'},
+  {label:'Filmes',url:'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1000&q=80'},
+  {label:'Música',url:'https://images.unsplash.com/photo-1524368535928-5b5e00ddc76b?auto=format&fit=crop&w=1000&q=80'},
+  {label:'Academia',url:'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=1000&q=80'},
+  {label:'Leitura',url:'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?auto=format&fit=crop&w=1000&q=80'},
+  {label:'Finanças',url:'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?auto=format&fit=crop&w=1000&q=80'},
+];
 const communityStyle: Record<string,{emoji:string;card:string;button:string}> = {
   acucar:{emoji:'🍬',card:'from-pink-50 to-rose-100 border-rose-300',button:'bg-rose-600 hover:bg-rose-700'},
   alcool:{emoji:'🌿',card:'from-emerald-50 to-teal-100 border-emerald-300',button:'bg-emerald-600 hover:bg-emerald-700'},
@@ -34,6 +42,8 @@ export default function GruposPage() {
   const [groupType, setGroupType] = useState<'club' | 'challenge'>('club');
   const [joinPolicy, setJoinPolicy] = useState<'approval' | 'link'>('approval');
   const [rankingEnabled, setRankingEnabled] = useState(true);
+  const [imageUrl,setImageUrl]=useState('');
+  const [imageFile,setImageFile]=useState<File|null>(null);
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
   const [token, setToken] = useState('');
@@ -57,10 +67,12 @@ export default function GruposPage() {
     event.preventDefault();
     setBusy(true); setError('');
     try {
+      let finalImage=imageUrl;
+      if(imageFile){const form=new FormData();form.append('image',imageFile);form.append('category','group');const upload=await fetch('/api/media/upload',{method:'POST',body:form});const uploaded=await upload.json();if(!upload.ok)throw new Error(uploaded.error);finalImage=uploaded.url}
       const response = await fetch('/api/addiction/groups', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description, group_type: groupType, join_policy: joinPolicy,
-          starts_on: startsOn, ends_on: endsOn, ranking_enabled: rankingEnabled }),
+          starts_on: startsOn, ends_on: endsOn, ranking_enabled: rankingEnabled, image_url: finalImage }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao criar grupo');
@@ -136,6 +148,7 @@ export default function GruposPage() {
         <form onSubmit={createGroup} className="space-y-4">
           <Input label="Nome do grupo" value={name} onChange={(event) => setName(event.target.value)} required minLength={3} maxLength={80} />
           <Input label="Descrição (opcional)" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={500} />
+          <div><p className="mb-2 text-sm font-bold text-slate-800">Imagem da comunidade</p><div className="grid grid-cols-3 gap-2 sm:grid-cols-6">{imageSuggestions.map(item=><button key={item.label} type="button" onClick={()=>{setImageUrl(item.url);setImageFile(null)}} className={`overflow-hidden rounded-xl border-2 text-left ${imageUrl===item.url?'border-blue-600 ring-2 ring-blue-200':'border-white'}`}><img src={item.url} alt={item.label} className="h-16 w-full object-cover"/><span className="block bg-white p-1 text-center text-[11px] font-bold">{item.label}</span></button>)}</div><label className="mt-3 flex cursor-pointer items-center gap-2 rounded-xl border-2 border-dashed border-emerald-300 bg-white p-3 text-sm font-bold text-emerald-800"><ImagePlus className="h-5 w-5"/>Usar uma foto minha<input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e=>{setImageFile(e.target.files?.[0]||null);setImageUrl('')}}/></label>{imageFile&&<p className="mt-1 text-xs text-slate-600">Selecionada: {imageFile.name}</p>}</div>
           <label className="block text-sm font-medium text-slate-800">Tipo de grupo
             <select className="mt-1 w-full rounded-lg border border-slate-300 bg-white p-3 text-slate-900" value={groupType} onChange={(event) => setGroupType(event.target.value as 'club' | 'challenge')}>
               <option value="club">Grupo contínuo</option><option value="challenge">Desafio com prazo</option>

@@ -64,6 +64,9 @@ export async function GET(
     const milestones = await getTrackerMilestones((await params).id);
     const recentEntries = await getTrackerEntries((await params).id, 10);
     const resets = await getTrackerResets((await params).id);
+    const { data: dailyCheckins } = await supabase.from('addiction_daily_checkins')
+      .select('checkin_date,status,source,responded_at').eq('tracker_id', tracker.id)
+      .neq('status','pending').order('checkin_date',{ascending:false}).limit(60);
 
     return NextResponse.json(
       {
@@ -74,6 +77,7 @@ export async function GET(
         milestones,
         recentEntries,
         resets,
+        dailyCheckins: dailyCheckins || [],
       },
       { status: 200 }
     );

@@ -20,6 +20,7 @@ export default function NotasPage() {
   const [error, setError] = useState<string | null>(null);
   const [tracker, setTracker] = useState<AddictionTracker | null>(null);
   const [entries, setEntries] = useState<AddictionEntry[]>([]);
+  const [dailyCheckins,setDailyCheckins]=useState<{checkin_date:string;status:string;source:string}[]>([]);
 
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
@@ -43,6 +44,7 @@ export default function NotasPage() {
       const data = await res.json();
       setTracker(data.tracker);
       setEntries(data.recentEntries || []);
+      setDailyCheckins(data.dailyCheckins || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar');
     } finally {
@@ -276,6 +278,8 @@ export default function NotasPage() {
           Adicionar Nota Hoje
         </Button>
       )}
+
+      <div className="mb-8 space-y-3"><h2 className="text-lg font-semibold">Histórico de check-ins</h2>{dailyCheckins.length===0?<Card><CardContent className="pt-6 text-center text-gray-600">Nenhuma resposta diária registrada ainda</CardContent></Card>:dailyCheckins.map(item=><Card key={item.checkin_date}><CardContent className="flex items-center justify-between gap-3 pt-6"><div><p className="font-bold text-slate-900">{formatDateBR(item.checkin_date)}</p><p className="text-xs text-slate-500">Respondido pelo {item.source==='whatsapp'?'WhatsApp':'aplicativo'}</p></div><span className={`rounded-full px-3 py-2 text-sm font-black ${item.status==='success'?'bg-emerald-100 text-emerald-900':item.status==='lapse'?'bg-rose-100 text-rose-900':'bg-amber-100 text-amber-900'}`}>{item.status==='success'?'✓ Consegui':item.status==='lapse'?'↻ Recomecei':'🤝 Pedi apoio'}</span></CardContent></Card>)}</div>
 
       {/* Entries List */}
       <div className="space-y-4">

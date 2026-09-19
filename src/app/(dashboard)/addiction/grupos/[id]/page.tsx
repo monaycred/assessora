@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { CircleCheck, Clock3, HeartHandshake, Link2, MessageCircle, Trophy, Users } from 'lucide-react';
 
 interface GroupData {
-  group: { id: string; name: string; description: string | null; group_type: string; join_policy: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
+  group: { id: string; name: string; description: string | null; image_url: string | null; group_type: string; join_policy: string; ranking_enabled: boolean; starts_on: string | null; ends_on: string | null };
   membership: { role: string; status: string };
   pending?: boolean;
   members?: { user_profile_id: string; nickname: string | null; avatar_url: string | null; role: string; status: string }[];
@@ -58,8 +58,9 @@ export default function GrupoPage() {
     data.group.starts_on && data.group.ends_on ? `Desafio de ${new Date(`${data.group.starts_on}T12:00:00`).toLocaleDateString('pt-BR')} até ${new Date(`${data.group.ends_on}T12:00:00`).toLocaleDateString('pt-BR')}` : 'Desafio com prazo';
   return <div className="mx-auto max-w-6xl space-y-5 p-4 pb-12 sm:p-6">
     <Link href="/addiction/grupos" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">← Meus grupos</Link>
-    <header className="rounded-3xl bg-gradient-to-br from-blue-700 via-cyan-500 to-emerald-400 p-5 text-white shadow-lg sm:p-8">
-      <div className="flex items-start gap-3"><div className="rounded-2xl bg-white/20 p-3"><HeartHandshake className="h-6 w-6" /></div><div className="min-w-0"><p className="text-sm font-medium text-white/90">{dateLabel}</p><h1 className="mt-1 break-words text-2xl font-bold sm:text-3xl">{data.group.name}</h1>{data.group.description && <p className="mt-2 text-sm leading-6 text-white/90">{data.group.description}</p>}</div></div>
+    <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-700 via-cyan-500 to-emerald-400 p-5 text-white shadow-lg sm:p-8">
+      {data.group.image_url&&<><img src={data.group.image_url} alt="" className="absolute inset-0 h-full w-full object-cover"/><div className="absolute inset-0 bg-gradient-to-r from-slate-950/85 via-slate-900/65 to-slate-900/20"/></>}
+      <div className="relative flex items-start gap-3"><div className="rounded-2xl bg-white/20 p-3"><HeartHandshake className="h-6 w-6" /></div><div className="min-w-0"><p className="text-sm font-medium text-white/90">{dateLabel}</p><h1 className="mt-1 break-words text-2xl font-bold sm:text-3xl">{data.group.name}</h1>{data.group.description && <p className="mt-2 text-sm leading-6 text-white/90">{data.group.description}</p>}</div></div>
     </header>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     {data.pending ? <Card className="border-blue-300 bg-blue-50 p-5 sm:p-6"><div className="flex items-start gap-3"><Clock3 className="mt-1 h-6 w-6 shrink-0 text-blue-700" /><div><h2 className="text-lg font-bold text-blue-950">Seu pedido foi enviado</h2><p className="mt-1 text-sm leading-6 text-blue-900">O responsável precisa aprovar sua entrada. Assim que aprovar, você poderá ver as pessoas e publicações deste grupo.</p><p className="mt-3 text-sm text-blue-800">Você já tem cadastro aprovado na Iasmin. Esta é apenas a aprovação para entrar neste grupo.</p></div></div></Card> : <>
