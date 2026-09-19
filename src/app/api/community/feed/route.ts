@@ -114,14 +114,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validar tracker é público
-    if (!tracker.is_public) {
-      return NextResponse.json(
-        { error: 'Este tracker não está visível na comunidade' },
-        { status: 400 }
-      );
-    }
-
     // Validar conteúdo
     const trimmedContent = content.trim();
     if (trimmedContent.length === 0 || trimmedContent.length > 280) {

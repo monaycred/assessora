@@ -14,6 +14,15 @@ type Group = {
   pending_count: number;
 };
 type FeaturedGroup = { id: string; name: string; description: string | null; category_slug: string; member_count: number; best_days: number; joined: boolean };
+const communityStyle: Record<string,{emoji:string;card:string;button:string}> = {
+  acucar:{emoji:'🍬',card:'from-pink-50 to-rose-100 border-rose-300',button:'bg-rose-600 hover:bg-rose-700'},
+  alcool:{emoji:'🌿',card:'from-emerald-50 to-teal-100 border-emerald-300',button:'bg-emerald-600 hover:bg-emerald-700'},
+  cigarro:{emoji:'🫁',card:'from-sky-50 to-cyan-100 border-sky-300',button:'bg-sky-600 hover:bg-sky-700'},
+  maconha:{emoji:'🌱',card:'from-lime-50 to-green-100 border-lime-300',button:'bg-lime-600 hover:bg-lime-700'},
+  instagram:{emoji:'📵',card:'from-fuchsia-50 to-purple-100 border-fuchsia-300',button:'bg-fuchsia-600 hover:bg-fuchsia-700'},
+  pornografia:{emoji:'🛡️',card:'from-violet-50 to-indigo-100 border-violet-300',button:'bg-violet-600 hover:bg-violet-700'},
+  cocaina:{emoji:'🤝',card:'from-orange-50 to-amber-100 border-orange-300',button:'bg-orange-600 hover:bg-orange-700'},
+};
 
 export default function GruposPage() {
   const router = useRouter();
@@ -25,7 +34,6 @@ export default function GruposPage() {
   const [joinPolicy, setJoinPolicy] = useState<'approval' | 'link'>('approval');
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
-  const [rankingEnabled, setRankingEnabled] = useState(false);
   const [token, setToken] = useState('');
   const [nickname, setNickname] = useState('');
   const [error, setError] = useState('');
@@ -50,7 +58,7 @@ export default function GruposPage() {
       const response = await fetch('/api/addiction/groups', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, description, group_type: groupType, join_policy: joinPolicy,
-          starts_on: startsOn, ends_on: endsOn, ranking_enabled: rankingEnabled }),
+          starts_on: startsOn, ends_on: endsOn, ranking_enabled: true }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Erro ao criar grupo');
@@ -97,12 +105,12 @@ export default function GruposPage() {
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{error}</p>}
     <section className="space-y-3">
       <div><h2 className="text-xl font-bold text-slate-900">Encontre sua comunidade</h2><p className="text-sm text-slate-600">Entre em um grupo sugerido e caminhe com pessoas que têm a mesma meta.</p></div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{featuredGroups.map((group) => <article key={group.id} className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-white to-emerald-50 p-5 shadow-sm">
-        <h3 className="font-bold text-slate-900">{group.name}</h3><p className="mt-2 min-h-10 text-sm text-slate-600">{group.description}</p>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{featuredGroups.map((group) => {const style=communityStyle[group.category_slug]||{emoji:'💪',card:'from-blue-50 to-indigo-100 border-blue-300',button:'bg-blue-600 hover:bg-blue-700'};return <article key={group.id} className={`relative overflow-hidden rounded-3xl border bg-gradient-to-br p-5 shadow-md transition hover:-translate-y-1 hover:shadow-xl ${style.card}`}>
+        <div className="absolute -right-4 -top-4 text-7xl opacity-15">{style.emoji}</div><div className="relative"><span className="mb-3 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/80 text-2xl shadow-sm">{style.emoji}</span><h3 className="text-lg font-extrabold text-slate-950">{group.name}</h3><p className="mt-2 min-h-10 text-sm leading-5 text-slate-700">{group.description}</p>
         <div className="mt-4 grid grid-cols-2 gap-2 text-center"><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-emerald-800">{group.member_count}</strong><span className="text-xs text-slate-600">participantes</span></div><div className="rounded-xl bg-white p-2"><strong className="block text-lg text-blue-800">{group.best_days}</strong><span className="text-xs text-slate-600">melhor sequência</span></div></div>
         <p className="mt-3 text-sm font-medium text-emerald-900">Continue: você consegue.</p>
-        {group.joined ? <Link href={`/addiction/grupos/${group.id}`} className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-emerald-100 text-sm font-bold text-emerald-900">Abrir grupo</Link> : <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className="mt-3 w-full">Entrar neste grupo</Button>}
-      </article>)}</div>
+        {group.joined ? <Link href={`/addiction/grupos/${group.id}`} className={`mt-3 inline-flex min-h-11 w-full items-center justify-center rounded-xl text-sm font-bold text-white shadow ${style.button}`}>Abrir comunidade</Link> : <Button type="button" onClick={() => joinFeatured(group.id)} disabled={busy} className={`mt-3 w-full ${style.button}`}>Entrar nesta comunidade</Button>}</div>
+      </article>})}</div>
     </section>
     {pendingTotal > 0 && <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-amber-950 shadow-sm">
       <div className="flex items-center gap-3"><Clock3 className="h-6 w-6 text-amber-700" /><p className="font-semibold">{pendingTotal} {pendingTotal === 1 ? 'pessoa aguarda' : 'pessoas aguardam'} sua aprovação</p></div>
@@ -136,7 +144,7 @@ export default function GruposPage() {
             </select>
           </label>
           <p className="rounded-lg bg-white p-3 text-sm text-slate-600">{joinPolicy === 'approval' ? 'Quando alguém usar seu convite, um pedido aparecerá aqui para você aprovar.' : 'Quem usar o convite entra imediatamente no grupo.'}</p>
-          <label className="flex items-center gap-3 text-sm font-medium text-slate-800"><input type="checkbox" checked={rankingEnabled} onChange={(event) => setRankingEnabled(event.target.checked)} className="h-4 w-4 accent-emerald-600" /> Mostrar ranking opcional</label>
+          <p className="rounded-xl bg-amber-100 p-3 text-sm font-semibold text-amber-950">🏆 Todo grupo já vem com ranking para motivar a comunidade.</p>
           <Button type="submit" disabled={busy} className="w-full sm:w-auto">Criar grupo</Button>
         </form>
       </Card>

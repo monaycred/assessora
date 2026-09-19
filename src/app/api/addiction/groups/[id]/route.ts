@@ -122,7 +122,7 @@ export async function POST(request: NextRequest, { params }: Context) {
     return error ? NextResponse.json({ error: error.message }, { status: 500 }) : NextResponse.json({ ok: true });
   }
 
-  if (body.action === 'invite' && isManager) {
+  if (body.action === 'invite') {
     const token = randomBytes(24).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const { error } = await db.from('support_group_invites').insert({

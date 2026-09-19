@@ -38,10 +38,10 @@ const typeEmojis: Record<string, string> = {
 };
 
 const typeColors: Record<string, string> = {
-  victory: 'bg-green-50 border-green-200',
-  challenge: 'bg-orange-50 border-orange-200',
-  tip: 'bg-blue-50 border-blue-200',
-  general: 'bg-gray-50 border-gray-200',
+  victory: 'bg-gradient-to-br from-emerald-50 to-lime-50 border-emerald-300',
+  challenge: 'bg-gradient-to-br from-orange-50 to-rose-50 border-orange-300',
+  tip: 'bg-gradient-to-br from-sky-50 to-indigo-50 border-sky-300',
+  general: 'bg-gradient-to-br from-fuchsia-50 to-violet-50 border-fuchsia-300',
 };
 
 export function CommunityFeed({
@@ -95,16 +95,16 @@ export function CommunityFeed({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-5">
       {posts.map((post) => (
-        <Card key={post.id} className={`border ${typeColors[post.post_type]}`}>
-          <CardContent className="pt-6 pb-4 space-y-3">
+        <Card key={post.id} className={`overflow-hidden rounded-3xl border-2 shadow-sm transition hover:shadow-lg ${typeColors[post.post_type]}`}>
+          <CardContent className="space-y-4 pb-5 pt-5 sm:p-6">
             {/* Header */}
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  {post.avatar_url && <img src={post.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />}
-                  <p className="font-semibold text-gray-900">{post.community_name}</p>
+                  {post.avatar_url ? <img src={post.avatar_url} alt="" className="h-11 w-11 rounded-full border-2 border-white object-cover shadow" /> : <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-xl shadow">{typeEmojis[post.post_type]}</span>}
+                  <p className="text-base font-extrabold text-slate-950">{post.community_name}</p>
                   <Badge variant="secondary" className="text-xs">
                     {post.current_streak_days}d
                   </Badge>
@@ -124,7 +124,7 @@ export function CommunityFeed({
             </div>
 
             {/* Content */}
-            <p className="text-gray-800 text-sm leading-relaxed">{post.content}</p>
+            <p className="whitespace-pre-wrap text-base leading-7 text-slate-900">{post.content}</p>
 
             {/* Reactions */}
             <div className="pt-2">

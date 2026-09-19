@@ -68,12 +68,12 @@ export default function GrupoPage() {
           <div className="grid grid-cols-2 gap-2 sm:flex"><Button onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'active' })} disabled={busy}>Aprovar</Button><Button variant="danger" onClick={() => act({ action: 'member', user_profile_id: member.user_profile_id, status: 'removed' })} disabled={busy} className="text-red-700">Recusar</Button></div>
         </div>)}</div> : <p className="text-sm text-slate-600">Nenhum pedido pendente. Quando alguém aceitar um convite com aprovação, aparecerá aqui.</p>}
       </Card>}
-      {manager && <Card className="space-y-3 border-emerald-200 bg-emerald-50/60 shadow-sm">
+      <Card className="space-y-3 border-emerald-200 bg-emerald-50/60 shadow-sm">
         <div className="flex items-center gap-2"><Link2 className="h-5 w-5 text-emerald-700" /><h2 className="text-lg font-bold text-slate-900">Convidar pessoas</h2></div>
         <p className="text-sm leading-6 text-slate-700">O convite vale por 30 dias. Cada pessoa precisa de cadastro completo e aprovado na Iasmin. {data.group.join_policy === 'approval' ? 'Neste grupo, você aprova cada pedido de entrada.' : 'Neste grupo, quem usa o link entra imediatamente.'}</p>
         <Button onClick={() => act({ action: 'invite' })} disabled={busy} className="w-full sm:w-auto">Gerar link de convite</Button>
         {invite && <div className="flex flex-col gap-2 sm:flex-row"><input aria-label="Link de convite" readOnly value={invite} className="min-w-0 flex-1 rounded-lg border border-emerald-300 bg-white p-3 text-xs text-slate-800" /><Button variant="secondary" onClick={() => navigator.clipboard.writeText(invite)}>Copiar link</Button></div>}
-      </Card>}
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="border-blue-200 bg-blue-50/50"><h2 className="mb-3 flex items-center gap-2 text-lg font-bold text-slate-900"><Users className="h-5 w-5 text-blue-700" />Membros ({activeMembers.length})</h2>

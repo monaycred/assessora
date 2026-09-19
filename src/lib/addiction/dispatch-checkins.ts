@@ -42,7 +42,7 @@ export async function dispatchDailyCheckins(now = new Date()) {
     }).select('id').maybeSingle();
     if (insertError || !checkin) continue; // outra execução já criou o check-in
 
-    const message = `🎯 *Check-in diário: ${tracker.name}*\n\nHoje você conseguiu seguir sua meta?\n\nResponda somente:\n*1* — Sim\n*2* — Não\n*3* — Preciso de apoio\n\nSe você tiver mais de uma jornada, eu pedirei o código *${code}* para identificar esta. Sua resposta é privada.`;
+    const message = `🎯 *Check-in diário: ${tracker.name}*\n\nHoje você conseguiu seguir sua meta?\n\nResponda somente:\n*1* — Sim\n*2* — Não\n*3* — Preciso de apoio\n\nSua resposta será aplicada a esta mensagem e permanecerá privada.`;
     try {
       await sendTextMessage(contact.phone_number, message, contact.instance_name || undefined);
       await db.from('addiction_daily_checkins').update({ sent_at: new Date().toISOString() }).eq('id', checkin.id);
