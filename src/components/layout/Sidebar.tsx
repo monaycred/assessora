@@ -57,6 +57,7 @@ const navigation: NavItem[] = [
   { name: "WhatsApp", href: "/whatsapp", icon: MessageSquare, adminOnly: true },
   { type: "divider", label: "GESTÃO" },
   { name: "Jornadas", href: "/addiction", icon: Target, moduleKey: "addiction" },
+  { name: "Minha empresa", href: "/minha-empresa", icon: Building2 },
   { name: "Tarefas", href: "/tarefas", icon: ListTodo },
   { name: "Cofre familiar", href: "/cofre", icon: KeyRound },
   { name: "Financeiro", href: "/financeiro", icon: DollarSign, moduleKey: "financeiro" },
