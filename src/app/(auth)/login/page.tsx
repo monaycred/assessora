@@ -178,7 +178,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-dark-600 mt-6">
-          assessora.gedaias.com
+          assessora.gedaias.com · <Link href="/privacidade" className="hover:text-primary-500">Privacidade</Link>
         </p>
       </div>
     </div>

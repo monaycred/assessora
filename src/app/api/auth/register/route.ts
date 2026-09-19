@@ -10,14 +10,14 @@ export async function POST(req: NextRequest) {
     const { full_name, nickname, cpf, email, phone, password, birth_date, cep,
       address_street, address_number, address_complement, address_neighborhood,
       address_city, address_state, emergency_name, emergency_phone,
-      emergency_relationship, referral_code, referral_relationship } = body;
+      emergency_relationship, referral_code, referral_relationship, privacy_accepted } = body;
 
     // Validações
     if (!full_name?.trim() || !nickname?.trim() || !cpf || !email?.trim() || !password ||
       !/^55\d{10,11}$/.test(String(phone || "")) || !/^\d{4}-\d{2}-\d{2}$/.test(String(birth_date || '')) ||
       !/^\d{8}$/.test(String(cep || '')) || !address_street?.trim() || !address_number?.trim() ||
       !address_neighborhood?.trim() || !address_city?.trim() || !/^[A-Z]{2}$/.test(String(address_state || '')) ||
-      !emergency_name?.trim() || !/^55\d{10,11}$/.test(String(emergency_phone || '')) || !emergency_relationship?.trim()) {
+      !emergency_name?.trim() || !/^55\d{10,11}$/.test(String(emergency_phone || '')) || !emergency_relationship?.trim() || privacy_accepted !== true) {
       return NextResponse.json(
         { error: "Preencha todos os dados obrigatórios com informações válidas" },
         { status: 400 }
@@ -93,6 +93,8 @@ export async function POST(req: NextRequest) {
         emergency_name, emergency_phone, emergency_relationship,
         referred_by: referrer?.id || null,
         referral_relationship: referrer ? String(referral_relationship || '').trim() : null,
+        privacy_policy_version: '2026-09-19',
+        privacy_policy_accepted_at: new Date().toISOString(),
       });
 
     if (profileError) {

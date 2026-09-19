@@ -29,6 +29,7 @@ export default function CadastroPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   useEffect(() => { setForm((current) => ({ ...current, referral_code: new URLSearchParams(window.location.search).get('ref') || '' })); }, []);
 
@@ -123,6 +124,10 @@ export default function CadastroPage() {
       setError("As senhas não coincidem.");
       return;
     }
+    if (!privacyAccepted) {
+      setError("Leia e aceite a Política de Privacidade para continuar.");
+      return;
+    }
 
     setLoading(true);
     try {
@@ -146,6 +151,7 @@ export default function CadastroPage() {
           emergency_name: form.emergency_name.trim(), emergency_phone: `55${form.emergency_phone.replace(/\D/g, '').replace(/^55/, '')}`,
           emergency_relationship: form.emergency_relationship.trim(), referral_code: form.referral_code || null,
           referral_relationship: form.referral_relationship || null,
+          privacy_accepted: privacyAccepted,
         }),
       });
 
@@ -298,6 +304,11 @@ export default function CadastroPage() {
               }
               required
             />
+
+            <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
+              <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} required className="mt-1 h-4 w-4 accent-emerald-600" />
+              <span>Li e aceito a <Link href="/privacidade" target="_blank" className="font-semibold text-emerald-700 underline">Política de Privacidade da Iasmin</Link>.</span>
+            </label>
 
             {error && (
               <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
